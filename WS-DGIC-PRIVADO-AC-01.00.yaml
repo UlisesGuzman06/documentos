@@ -1,0 +1,136 @@
+openapi: 3.1.0
+info:
+  title: RC — Asociar cuenta (AC)
+  version: "01.00"
+  description: |
+    Servicio para **asociar una cuenta** (tablas: asociados, usuarios, usuario_asociados).
+    Fuente: API-RC-PRIVADO-AC-02.00 (identificación WS-DGIC-PRIVADO-AC-01.00).
+servers:
+  - url: http://servicercdev.mendoza.gov.ar
+    description: "Testing (URL explícita en documento)."
+tags:
+  - name: RC
+components:
+  parameters:
+    X_eRoad_Client:
+      name: X-eRoad-Client
+      in: header
+      required: true
+      schema: { type: string }
+    X_Road_UserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+    X_Road_Issue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+  schemas:
+    AsociarCuentaRequest:
+      type: object
+      properties:
+        cuil_usuario: { type: string, description: "CUIL del usuario (11 o 13 con guiones)" }
+        cuil_asociado: { type: string, description: "CUIL del asociado" }
+        nombre: { type: string }
+        apellido: { type: string }
+        fecha_nac: { type: string, format: date }
+        relacion: { type: string, maxLength: 13 }
+      required: [cuil_usuario, cuil_asociado, nombre, apellido, fecha_nac, relacion]
+    MsjError:
+      type: object
+      properties:
+        coderror: { type: string }
+        error: { type: string }
+      required: [coderror, error]
+    AsociarCuentaResponse:
+      type: object
+      properties:
+        response:
+          type: object
+          properties:
+            flag: { type: string, enum: ["SI","NO"] }
+            msjerrores:
+              oneOf:
+                - $ref: "#/components/schemas/MsjError"
+                - type: array
+                  items: { $ref: "#/components/schemas/MsjError" }
+            respuesta:
+              type: object
+              properties:
+                mensaje: { type: string }
+      required: [response]
+paths:
+  /api/asociar-cuenta:
+    post:
+      tags: [RC]
+      summary: Asociar cuenta
+      operationId: asociarCuenta
+      parameters:
+        - $ref: "#/components/parameters/X_eRoad_Client"
+        - $ref: "#/components/parameters/X_Road_UserId"
+        - $ref: "#/components/parameters/X_Road_Issue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AsociarCuentaRequest" }
+            examples:
+              ejemplo:
+                value:
+                  cuil_usuario: "23-31188227-9"
+                  cuil_asociado: "27-56292014-0"
+                  nombre: "Peter"
+                  apellido: "Parker"
+                  fecha_nac: "2011-06-22"
+                  relacion: "Padre"
+      responses:
+        "200":
+          description: Único HTTP indicado (éxito o fracaso por bandera).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AsociarCuentaResponse" }
+              examples:
+                exito:
+                  value:
+                    response:
+                      flag: "SI"
+                      msjerrores: { coderror: "", error: "" }
+                      respuesta: { mensaje: "Cuenta asociada correctamente" }
+                error_cuil_usuario:
+                  value:
+                    response:
+                      flag: "NO"
+                      msjerrores: { coderror: "01", error: "El cuil_usuario no es válido" }
+                      respuesta: { mensaje: "" }
+                error_cuil_asociado:
+                  value:
+                    response:
+                      flag: "NO"
+                      msjerrores: { coderror: "02", error: "El cuil_asociado no es válido" }
+                      respuesta: { mensaje: "" }
+                error_nombre:
+                  value:
+                    response:
+                      flag: "NO"
+                      msjerrores: { coderror: "03", error: "El nombre no es válido" }
+                      respuesta: { mensaje: "" }
+                error_apellido:
+                  value:
+                    response:
+                      flag: "NO"
+                      msjerrores: { coderror: "04", error: "El apellido no es válido" }
+                      respuesta: { mensaje: "" }
+                error_fecha_nac_obligatoria:
+                  value:
+                    response:
+                      flag: "NO"
+                      msjerrores: { coderror: "05", error: "La fecha de nacimiento es obligatoria" }
+                      respuesta: { mensaje: "" }
+                error_relacion_obligatoria:
+                  value:
+                    response:
+                      flag: "NO"
+                      msjerrores: { coderror: "06", error: "La relación es obligatoria" }
+                      respuesta: { mensaje: "" }

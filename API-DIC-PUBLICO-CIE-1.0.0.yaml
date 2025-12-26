@@ -1,0 +1,153 @@
+openapi: 3.1.0
+info:
+  title: DIC — Cierre de Ticket (CIE)
+  version: "1.0.0"
+  description: |
+    Servicio para **cerrar** un ticket específico.
+    Reglas de operación: Tipo REST, método POST.
+    Path indicado en el documento: **/api/v1/tickets/cierre**.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/{ORGANISMO}/{CODIGO}/{SISTEMA}
+    description: "Testing (X-Road). URL base según convención."
+    variables:
+      nodoXroad: { default: xroad-test.mendoza.gov.ar }
+      ORGANISMO: { default: DIC }
+      CODIGO: { default: PUBLICO }
+      SISTEMA: { default: TICKETS }
+tags: [{ name: DIC }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+      description: "Usuario firmante (opcional según documento)."
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: >
+        Identificador único y descentralizado (UUID v4 recomendado). En cadenas de llamados,
+        anteponer aplicaciones intervinientes: `App2-App1-<uuid>`.
+  schemas:
+    Cierre:
+      type: object
+      properties:
+        ticketNro: { type: integer, example: 107611 }
+        categoriaTicket: { type: integer, example: 153, description: "79=TURNOS_APP148, 153=TURNOS_MXM" }
+        solTipDoc: { type: string, example: "DNI", maxLength: 3 }
+        solDoc: { type: string, example: "39377856", maxLength: 13 }
+        solSex: { type: string, example: "F", maxLength: 1 }
+        estadoCierre:
+          type: string
+          example: "E"
+          description: "E=Cerrado Exitosamente; U=Cerrado por Anulación; C=Cierre por Plazo Vencido"
+          maxLength: 1
+        motivoCierre: { type: string, maxLength: 256, example: "El ciudadano confirmó asistencia al turno." }
+        sistemaCodigo: { type: string, maxLength: 20, example: "MXM" }
+      required: [ticketNro, categoriaTicket, solTipDoc, solDoc, solSex, estadoCierre, motivoCierre, sistemaCodigo]
+    Mensaje:
+      type: object
+      properties:
+        Description: { type: string, maxLength: 256 }
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+      required: [Description, Id, Type]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["S","N"] }
+        Messages:
+          type: array
+          items: { $ref: "#/components/schemas/Mensaje" }
+      required: [Flag]
+paths:
+  /api/v1/tickets/cierre:
+    post:
+      tags: [DIC]
+      summary: Cerrar ticket
+      operationId: cerrarTicket
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadUserId"
+        - $ref: "#/components/parameters/XRoadIssue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Cierre: { $ref: "#/components/schemas/Cierre" }
+              required: [Cierre]
+            examples:
+              ejemplo:
+                value:
+                  Cierre:
+                    ticketNro: 107607
+                    categoriaTicket: 153
+                    solTipDoc: "DNI"
+                    solDoc: "40069654"
+                    solSex: "M"
+                    estadoCierre: "E"
+                    motivoCierre: "El ciudadano confirmó asistencia al turno"
+                    sistemaCodigo: "MXM"
+      responses:
+        "200":
+          description: Único HTTP documentado (éxito o error de aplicación).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SDTResultado" }
+              examples:
+                exito:
+                  value:
+                    Flag: "S"
+                    Messages:
+                      - { Description: "La solicitud 107610 ha sido cerrada exitosamente.", Id: "Cerrado", Type: 2 }
+                error_EstadoTicketNoPermitido:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "ERROR: No se puede operar con el estado actual (Cerrado Resuelto) del ticket 107595.", Id: "EstadoTicketNoPermitido", Type: 1 }]
+                error_InvalidTicketNro:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "Error: No existe ticket con el número ingresado o el mismo no pertenece al solicitante", Id: "InvalidTicketNro", Type: 1 }]
+                error_CodigoSistemaVacio:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "Error: Debe ingresar el código del sistema para la validación de uso del web service.", Id: "CodigoSistemaVacio", Type: 1 }]
+                error_SistemaNoExistente:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "Error: El sistema ingresado 'TEST' no existe.", Id: "SistemaNoExistente", Type: 1 }]
+                error_InvalidState:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "Error: Estado de ticket no válido", Id: "InvalidState", Type: 1 }]
+                error_EmptyDocNum:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "Error: Número de documento requerido", Id: "EmptyDocNum", Type: 1 }]
+                error_EmptyDocType:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "Error: Tipo de documento requerido", Id: "EmptyDocType", Type: 1 }]
+                error_InvalidTicketCategoria:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "Error: Categoría de ticket requerida o incorrecta", Id: "InvalidTicketCategoria", Type: 1 }]
+                error_EmptySex:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "Error: Debe ingresar Sexo", Id: "EmptySex", Type: 1 }]
+                error_CategoriaNoPermitida:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "ERROR: La categoría del ticket 107517 no corresponde a los turnos otorgados en Centros de Salud.", Id: "CategoriaNoPermitida", Type: 1 }]

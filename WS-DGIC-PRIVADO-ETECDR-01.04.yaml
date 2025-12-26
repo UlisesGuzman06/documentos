@@ -1,0 +1,86 @@
+openapi: 3.1.0
+info:
+  title: WS Entrega/Estado de Turno (CDR)
+  version: "01.04"
+  description: |
+    Servicio para **entregar o consultar el estado** de un turno CDR (flujo posterior a la confirmación).
+    Fuente: WS-DGIC-PRIVADO-ETECDR-01.04.
+servers:
+  - url: http://dicapprdb.mendoza.gov.ar:8080/servicioscdrtst/WebServCDR
+    description: Testing (según convención CDR).
+tags:
+  - name: CDR
+paths:
+  /WSEntregarTurno:
+    post:
+      tags: [CDR]
+      summary: Entrega/Estado del turno
+      operationId: entregarTurno
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntregaTurnoRequest'
+            examples:
+              Ejemplo:
+                value:
+                  codTurno: "08138702072025010000101"
+                  accion: "ENTREGAR"
+      responses:
+        "200":
+          description: Único HTTP documentado. `flag=1` éxito; `flag=9` error/condición no cumplida.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntregaTurnoResponse'
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_NoExiste:
+                  $ref: '#/components/examples/Error_NoExiste'
+components:
+  schemas:
+    Mensaje:
+      type: object
+      properties:
+        codMsg: { type: integer }
+        textoMsg: { type: string }
+      required: [codMsg, textoMsg]
+    EntregaTurnoRequest:
+      type: object
+      properties:
+        codTurno: { type: string, maxLength: 21 }
+        accion:
+          type: string
+          description: Operación solicitada.
+          enum: ["ENTREGAR","CONSULTAR"]
+      required: [codTurno, accion]
+    EntregaTurnoResponse:
+      type: object
+      properties:
+        flag:
+          type: integer
+          enum: [1, 9]
+        estado: { type: string }
+        mensajes:
+          type: array
+          items: { $ref: '#/components/schemas/Mensaje' }
+      required: [flag]
+  examples:
+    Exito:
+      summary: Entrega registrada
+      value:
+        flag: 1
+        estado: "ENTREGADO"
+        mensajes:
+          - codMsg: 5001
+            textoMsg: "OK: turno ENTREGADO"
+    Error_NoExiste:
+      summary: Turno inexistente
+      value:
+        flag: 9
+        estado: ""
+        mensajes:
+          - codMsg: 5009
+            textoMsg: "ERROR: no existe turno"

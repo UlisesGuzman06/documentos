@@ -1,0 +1,130 @@
+openapi: 3.1.0
+info:
+  title: Consulta de Documento en Expedientes (DIC)
+  version: "1.0.1"
+  description: |
+    Servicio para **obtener los expedientes** en los que se encuentra un documento GDE.
+
+    Reglas (según PDF oficial):
+    - Tipo: REST
+    - Método: **GET**
+servers:
+  - url: https://{nodoXroad}/r1/mendoza.gov.ar/serviciosgdeprd
+    description: Ambiente Producción (según documento)
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GDE
+paths:
+  /api/v1/documentos/consultaexpedientes:
+    get:
+      tags: [GDE]
+      summary: Lista expedientes que contienen un documento
+      operationId: consultarExpedientesDeDocumento
+      parameters:
+        - $ref: '#/components/parameters/Cod'
+      responses:
+        "200":
+          description: Éxito o error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  SDTExpedientesDeDocumento:
+                    $ref: '#/components/schemas/SDTExpedientesDeDocumento'
+                  SDTResultado:
+                    $ref: '#/components/schemas/SDTResultado'
+                required: [SDTResultado]
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_Codigo_Vacio:
+                  $ref: '#/components/examples/Error_Codigo_Vacio'
+                Error_Excepciones_WSGDE:
+                  $ref: '#/components/examples/Error_Excepciones_WSGDE'
+                Error_Numero_NoValido:
+                  $ref: '#/components/examples/Error_Numero_NoValido'
+components:
+  parameters:
+    Cod:
+      name: Cod
+      in: query
+      required: true
+      description: |
+        Código del documento electrónico (máx. 200).
+        Si contiene `#`, usar `%23`.
+      schema:
+        type: string
+        maxLength: 200
+      examples:
+        ejemplo:
+          value: CGP-2021-00060492-GDEMZA-CGPROV%23MHYF
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag, Messages]
+    SDTExpedientesDeDocumento:
+      type: object
+      properties:
+        listadoExpedientes:
+          type: array
+          items:
+            type: string
+      required: [listadoExpedientes]
+  examples:
+    Exito:
+      summary: Expedientes recuperados
+      value:
+        SDTExpedientesDeDocumento:
+          listadoExpedientes:
+            - "EX-2021-00060484--GDEMZA-CGPROV#MHYF"
+        SDTResultado:
+          Flag: "C"
+          Messages:
+            - Description: "Se ha encontrado el documento electrónico con el código ingresado."
+              Id: "DocumentoElectrónico_Encontrado"
+              Type: 0
+    Error_Codigo_Vacio:
+      summary: Código documento vacío
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe completar el código del documento a consultar."
+              Id: "Filtros_Vacios_CodigoDocumento"
+              Type: 1
+    Error_Excepciones_WSGDE:
+      summary: Excepciones desde WSGDE
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Se ha producido una excepción al consultar los servicios con GDE del documento electrónico: CGP-2023-00060492-GDEMZA-CGPROV%23MHYF"
+              Id: "WSGDE_ExcepcionJava_MsjCapa"
+              Type: 1
+            - Description: " El número de documento ingresado no es válido."
+              Id: "WSGDE_ExcepcionJava_MsjWSGDE"
+              Type: 1
+    Error_Numero_NoValido:
+      summary: Número de documento no válido
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: " El número de documento ingresado no es válido."
+              Id: "NumeroDocumento_NoValido"
+              Type: 1

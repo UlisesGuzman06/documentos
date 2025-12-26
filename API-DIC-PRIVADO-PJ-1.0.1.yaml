@@ -1,0 +1,112 @@
+openapi: 3.1.0
+info:
+  title: DIC — Persona Jurídica (PJ)
+  version: "1.0.1"
+  description: |
+    Verifica datos de una persona jurídica por **CUIT**.
+    Fuente: API-DIC-PRIVADO-PJ-1.0.1 para Catálogo.
+    Reglas: REST, **POST**. Parámetro `cuit` en **query**.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/SERVICIOCIUDADANO
+    description: Testing (convención X-Road).
+    variables:
+      nodoXroad: { default: xroad-test.mendoza.gov.ar }
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/SERVICIOCIUDADANO/pjuridica
+    description: Producción indicado en el documento.
+    variables:
+      nodoXroad: { default: xroad.mendoza.gov.ar }
+tags: [{ name: ServicioCiudadano }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: >
+        Identificador único (UUID v4 recomendado). Puede anteponerse nombre de app
+        y encadenarse: `App2-App1-<uuid>`.
+    CUIT:
+      name: cuit
+      in: query
+      required: true
+      schema: { type: string, minLength: 11, maxLength: 11 }
+      description: "Clave Única de Identificación Tributaria (11 dígitos). Ej.: 30714710504"
+  schemas:
+    MsjError:
+      type: object
+      properties:
+        coderror: { type: string }
+        error: { type: string }
+      required: [coderror, error]
+    RespuestaPJ:
+      type: object
+      properties:
+        razonSocial: { type: string }
+        valido: { type: boolean }
+      required: [razonSocial, valido]
+    ResponsePJ:
+      type: object
+      properties:
+        response:
+          type: object
+          properties:
+            flag: { type: string, enum: ["SI","NO"] }
+            msjerrores:
+              oneOf:
+                - type: array
+                  items: { $ref: "#/components/schemas/MsjError" }
+                - type: object
+                  properties:
+                    coderror: { type: string }
+                    error: { type: string }
+            respuesta:
+              oneOf:
+                - $ref: "#/components/schemas/RespuestaPJ"
+                - type: array
+      required: [response]
+paths:
+  /pjuridica:
+    post:
+      tags: [ServicioCiudadano]
+      summary: Verificar persona jurídica por CUIT
+      operationId: verificarPersonaJuridica
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadIssue"
+        - $ref: "#/components/parameters/CUIT"
+      responses:
+        "200":
+          description: Único HTTP indicado (éxito o error de aplicación).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ResponsePJ" }
+              examples:
+                exito:
+                  value:
+                    response:
+                      flag: "SI"
+                      msjerrores: []
+                      respuesta:
+                        razonSocial: "ROJO SRL"
+                        valido: true
+                fracaso_no_juridica:
+                  value:
+                    response:
+                      flag: "NO"
+                      msjerrores:
+                        coderror: "2"
+                        error: "El cuit ingresado no corresponde a una persona jurídica"
+                      respuesta: []
+                fracaso_cuit_invalido:
+                  value:
+                    response:
+                      flag: "NO"
+                      msjerrores:
+                        coderror: "1"
+                        error: "El número de CUIT es obligatorio y debe proporcionarse en un formato válido (11 dígitos)."

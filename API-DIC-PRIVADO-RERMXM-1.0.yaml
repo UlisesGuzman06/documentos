@@ -1,0 +1,108 @@
+openapi: 3.1.0
+info:
+  title: DIC — Registro de Emisión de Resoluciones MXM (webhook/resolucionEmitida)
+  version: "1.0.1"
+  description: |
+    Webhook para **actualización de estado** en el registro de emisión de resoluciones.
+    Fuente: API-DIC-PRIVADO-RERMXM-1.0 (Adaptación X-Road 1.0.1).
+servers:
+  - url: http://dicmxmapdev.mendoza.gov.ar:4000
+    description: "Testing (URL explícita en documento)."
+  - url: https://mendoza.gov.ar
+    description: "Producción (host indicado en documento)."
+tags:
+  - name: capaserviciosgx
+components:
+  parameters:
+    X_eRoad_Client:
+      name: X-eRoad-Client
+      in: header
+      required: true
+      schema: { type: string }
+      description: "Cliente autorizado para su consumo."
+    X_Road_UserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+      description: "Identificación del usuario que inicia la solicitud."
+    X_Road_Issue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: >
+        Identificador único (UUID v4 recomendado). Puede anteponerse el nombre de la app (`App-<uuid>`)
+        y, en cadenas de llamados, cada app (`App2-App1-<uuid>`).
+  schemas:
+    ResolucionEmitidaRequest:
+      type: object
+      properties:
+        status: { type: boolean, description: "Estado del trámite" }
+        idSolicitud: { type: string }
+        mensaje: { type: string }
+        pdfResolucion: { type: string, description: "Referencia al documento emitido" }
+        DocRepCod: { type: string, description: "Repositorio (ej.: ENTIDADES)" }
+        nroResolucion: { type: string }
+        nroLegajoMatricula: { type: string }
+      required: [status, idSolicitud, mensaje, pdfResolucion, DocRepCod, nroResolucion, nroLegajoMatricula]
+    ExitoMessage:
+      type: object
+      properties:
+        message: { type: string }
+      required: [message]
+    BadRequestError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            statusCode: { type: integer, enum: [400] }
+            name: { type: string, const: "BadRequestError" }
+            message: { type: string, enum: ["Parámetros inválidos","Parámetros faltantes"] }
+          required: [statusCode, name, message]
+      required: [error]
+paths:
+  /webhook/resolucionEmitida:
+    post:
+      tags: [capaserviciosgx]
+      summary: Notificar emisión de resolución
+      operationId: resolucionEmitida
+      parameters:
+        - $ref: "#/components/parameters/X_eRoad_Client"
+        - $ref: "#/components/parameters/X_Road_UserId"
+        - $ref: "#/components/parameters/X_Road_Issue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResolucionEmitidaRequest" }
+            examples:
+              ejemplo_curl:
+                value:
+                  status: true
+                  idSolicitud: "1525s1Aios78"
+                  mensaje: "Resolución Emitida"
+                  pdfResolucion: "58saRT89"
+                  DocRepCod: "ENTIDADES"
+                  nroResolucion: "s55a1s89"
+                  nroLegajoMatricula: "56715a858"
+      responses:
+        "200":
+          description: Actualización recibida correctamente.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExitoMessage" }
+              examples:
+                exito:
+                  value: { message: "Actualización del estado recibida correctamente" }
+        "400":
+          description: Solicitud inválida o con campos faltantes.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BadRequestError" }
+              examples:
+                faltan_datos:
+                  value: { error: { statusCode: 400, name: "BadRequestError", message: "Parámetros faltantes" } }
+                campos_invalidos:
+                  value: { error: { statusCode: 400, name: "BadRequestError", message: "Parámetros inválidos" } }

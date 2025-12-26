@@ -1,0 +1,86 @@
+openapi: 3.1.0
+info:
+  title: Consulta Bloqueo de Expediente (EC)
+  version: "2.0.0"
+  description: |
+    Consulta el **estado de bloqueo** de un expediente GDE. Documento: API-EC-PRIVADO-CBE-2.0.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/EC/002/capaserviciosgx
+    description: Base X-Road (Testing).
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: Expedientes
+paths:
+  /GDEConsultaBloqueoTST:
+    post:
+      tags: [Expedientes]
+      summary: Consulta bloqueo por código de expediente
+      operationId: consultarBloqueoExpediente
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadIssue'
+        - $ref: '#/components/parameters/Cod'
+      responses:
+        "200":
+          description: Único HTTP documentado. Éxito (`Flag=C`) o error de aplicación (`Flag=E`).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Bloqueado: { type: boolean }
+                  Motivo: { type: string }
+                  SDTResultado:
+                    $ref: '#/components/schemas/SDTResultado'
+                required: [SDTResultado]
+              examples:
+                Exito:
+                  value:
+                    Bloqueado: true
+                    Motivo: "Bloqueo por motivo funcional"
+                    SDTResultado:
+                      Flag: "C"
+                      Messages: []
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "UUID v4 recomendado; admite cadenas App-<uuid>, App2-App1-<uuid>."
+    Cod:
+      name: Cod
+      in: query
+      required: true
+      description: |
+        Código del expediente electrónico (máx. 200). Si contiene `#`, codificar: `#` → `%23`.
+      schema:
+        type: string
+        maxLength: 200
+      examples:
+        ejemplo:
+          value: EX-2022-00011642--GDEMZA-OSEP%23MSDSYD
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id: { type: string }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag]

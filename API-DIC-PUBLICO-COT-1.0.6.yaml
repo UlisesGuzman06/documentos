@@ -1,0 +1,105 @@
+openapi: 3.1.0
+info:
+  title: DIC — Consulta de Tickets (COT)
+  version: "1.0.6"
+  description: |
+    Consulta tickets por filtros de solicitante y/o número de ticket.
+    Fuente: *Catálogo API-DIC-PUBLICO-COT-1.0.6.pdf*.
+    Reglas: REST **POST**. El documento **no indica** path HTTP X‑Road exacto.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/TICKETS
+    description: "Testing (convención X‑Road). Path exacto no indicado."
+    variables:
+      nodoXroad: { default: xroad-test.mendoza.gov.ar }
+tags: [{ name: DIC }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "UUID v4 recomendado; admite prefijos/cadenas."
+  schemas:
+    AtributoExtra:
+      type: object
+      properties:
+        AtributoCodigo: { type: string, maxLength: 40 }
+        AtributoComparacion: { type: string, enum: [">","<","="] }
+        TicketAtributoValor: { type: string, maxLength: 4096 }
+      required: [AtributoCodigo, AtributoComparacion, TicketAtributoValor]
+    DatosTickets:
+      type: object
+      properties:
+        sistemaCodigo: { type: string, maxLength: 20 }
+        ticketNro: { type: integer }
+        solTipDoc: { type: string, enum: ["DNI","PAS","CE","CUI"] }
+        solDoc: { type: string, maxLength: 13 }
+        solSex: { type: string, enum: ["M","F","X"] }
+        ticketPrcUsu: { type: string, maxLength: 30 }
+        ticketEst: { type: string, enum: ["X","A","G","D","R","I","S","Y","E","N","Z","C","P","U"] }
+        ticketEstablecimientoNumero: { type: string, maxLength: 100 }
+        atributosExtra:
+          type: array
+          items: { $ref: "#/components/schemas/AtributoExtra" }
+        cabeceraDetallada: { type: string, enum: ["SI","NO"] }
+        mostrarAvances: { type: string, enum: ["SI","NO"] }
+        mostrarArchivos: { type: string, enum: ["SI","NO"] }
+        mostrarIds: { type: string, enum: ["SI","NO"] }
+      required: [sistemaCodigo, solTipDoc, solDoc]
+    Mensaje:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    Status:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["S","N"] }
+        Messages:
+          type: array
+          items: { $ref: "#/components/schemas/Mensaje" }
+      required: [Flag]
+    TicketItem:
+      type: object
+      additionalProperties: true
+    ConsultaTicketsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/TicketItem" }
+        status: { $ref: "#/components/schemas/Status" }
+      required: [status]
+paths:
+  /NO_INDICADO_EN_DOCUMENTO:
+    post:
+      tags: [DIC]
+      summary: Consultar tickets
+      description: "El documento no brinda path HTTP; se documenta sin inventar."
+      operationId: consultarTickets
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadIssue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                DatosTickets: { $ref: "#/components/schemas/DatosTickets" }
+              required: [DatosTickets]
+      responses:
+        "200":
+          description: Único HTTP indicado (éxito o fallo por bandera). Sin otros códigos HTTP.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConsultaTicketsResponse" }

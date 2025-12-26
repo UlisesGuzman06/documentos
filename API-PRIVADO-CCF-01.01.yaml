@@ -1,0 +1,154 @@
+openapi: 3.1.0
+info:
+  title: Certificado de Cumplimiento Fiscal (CCF)
+  version: "01.01"
+  description: |
+    Obtener datos de cumplimiento fiscal por **CUIT/CUIL**.
+    Documento: API-PRIVADO-CCF-01.01 V.01.00 (24/06/2024, adaptación X-Road).
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/INFODEUDA
+    description: Testing — CcumplimientoTst (indicado en documento).
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/INFODEUDA
+    description: Producción — CCumplimientoPrd (indicado en documento).
+    variables:
+      nodoXroad:
+        default: xroad.mendoza.gov.ar
+tags:
+  - name: INFODEUDA
+paths:
+  /CcumplimientoTst:
+    post:
+      tags: [INFODEUDA]
+      summary: Certificado de Cumplimiento Fiscal (Testing)
+      operationId: ccfTesting
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadIssue'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CCFRequest'
+            examples:
+              ejemplo_ok:
+                value: { cuil: "30-67813830-0" }
+              ejemplo_error:
+                value: { cuil: "30-67813830-a" }
+      responses:
+        "200":
+          description: Único HTTP documentado. `response.flag = "SI" | "NO"`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CCFResponseWrapper'
+              examples:
+                exito:
+                  value:
+                    response:
+                      flag: "SI"
+                      msjerrores: []
+                      respuesta:
+                        deuda: true
+                        nombre: "DORINKA S.R.L."
+                        cuil: "30-67813830-0"
+                        "codigo Validacion": ""
+                        impuestoAutomotores: "No posee deuda en el Impuesto Automotor"
+                        impuestoInmobiliario: "Posee deuda en el Impuesto Inmobiliario"
+                        impuestoDeSellos: "Posee deuda en Ingresos de Sellos"
+                        impuestosVarios: "Posee deuda en el Impuestos Varios"
+                        impuestosIIBB: "Posee deuda en Ingresos Brutos"
+                        inscripcionIIBB: 15381410
+                        fechaConsulta: "29/04/2024"
+                        fechaVigencia: "29/05/2024"
+                error:
+                  value:
+                    response:
+                      flag: "NO"
+                      msjerrores: { error: "El documento debe ser solo números" }
+                      respuesta: []
+  /CCumplimientoPrd:
+    post:
+      tags: [INFODEUDA]
+      summary: Certificado de Cumplimiento Fiscal (Producción)
+      operationId: ccfProduccion
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadIssue'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CCFRequest'
+      responses:
+        "200":
+          description: Único HTTP documentado. `response.flag = "SI" | "NO"`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CCFResponseWrapper'
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "Identificador único de transacción (recomendado UUID v4). Admite prefijos: NombreApp-<uuid>."
+  schemas:
+    CCFRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        cuil:
+          type: string
+          description: "CUIL/CUIT. El documento indica tipo *integer* (11 dígitos), pero los ejemplos incluyen guiones (13 con '-')."
+          minLength: 11
+          maxLength: 13
+      required: [cuil]
+    CCFResponseWrapper:
+      type: object
+      properties:
+        response:
+          type: object
+          properties:
+            flag:
+              type: string
+              enum: ["SI","NO"]
+            msjerrores:
+              oneOf:
+                - type: object
+                  properties:
+                    error: { type: string }
+                - type: array
+                  items: {}
+            respuesta:
+              oneOf:
+                - type: array
+                - $ref: '#/components/schemas/CCFRespuesta'
+          required: [flag, msjerrores, respuesta]
+      required: [response]
+    CCFRespuesta:
+      type: object
+      properties:
+        deuda: { type: boolean }
+        nombre: { type: string }
+        cuil: { type: string }
+        "codigo Validacion": { type: string }
+        impuestoAutomotores: { type: string }
+        impuestoInmobiliario: { type: string }
+        impuestoDeSellos: { type: string }
+        impuestosVarios: { type: string }
+        impuestosIIBB: { type: string }
+        inscripcionIIBB: { type: integer }
+        fechaConsulta: { type: string }
+        fechaVigencia: { type: string }

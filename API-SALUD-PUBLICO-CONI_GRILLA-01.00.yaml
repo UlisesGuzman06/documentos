@@ -1,0 +1,123 @@
+openapi: 3.1.0
+info:
+  title: WS Consulta Certificados de Aptitud CONI (GRILLA)
+  version: "01.00"
+  description: |
+    Servicio para **consultar expedientes vigentes por documento** (grilla).
+
+    Reglas (según documento WS-SALUD-PUBLICO-CONI_GRILLA-01.00):
+    - Tipo: REST
+    - Método soportado: **POST**
+    - Producción (ruta textual del documento): `https://{nodoXroad}/r1/mendoza/DIC/002/CDR/CONIgrilla`
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/CDR
+    description: Base (según PDF)
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: CONI
+paths:
+  /CONIgrilla:
+    post:
+      tags: [CONI]
+      summary: Consulta expedientes CONI (grilla)
+      operationId: coniGrilla
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CONIGrillaRequest'
+            examples:
+              Ejemplo:
+                value:
+                  Documento: "31288225"
+                  Expte: "20050"
+                  Usuario: "GIRI"
+      responses:
+        "200":
+          description: Único HTTP documentado (flag SI/NO en payload).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CONIUniqueWrapper'
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Sin_Datos:
+                  $ref: '#/components/examples/Sin_Datos'
+components:
+  schemas:
+    CONIGrillaRequest:
+      type: object
+      properties:
+        Documento: { type: string, maxLength: 10 }
+        Expte: { type: string, maxLength: 10 }
+        Usuario: { type: string, maxLength: 20 }
+      required: [Documento]
+    CONIUnique:
+      type: object
+      properties:
+        apellidomaterno: { type: string }
+        apellidopaterno: { type: string }
+        coddestino: { type: string }
+        codresultado: { type: string }
+        descrtipodoc: { type: string }
+        destino: { type: string }
+        expediente: { type: string }
+        fechaturno: { type: string }
+        flag: { type: string, enum: ["SI","NO"] }
+        nacimiento: { type: string }
+        nombres: { type: string }
+        nrodocumento: { type: string }
+        resultado: { type: string }
+        sexo: { type: string }
+        status: { type: string }
+        tipodocumento: { type: string }
+    CONIUniqueWrapper:
+      type: object
+      properties:
+        outCONIunique: { $ref: '#/components/schemas/CONIUnique' }
+      required: [outCONIunique]
+  examples:
+    Exito:
+      summary: Resultado con datos
+      value:
+        outCONIunique:
+          apellidomaterno: ""
+          apellidopaterno: "PEREZ"
+          coddestino: "6"
+          codresultado: "1"
+          descrtipodoc: "Documento Nacional de Identidad"
+          destino: "MATRÍCULA PROFESIONAL y ACTIVIDAD QUE CORRESPONDA"
+          expediente: "20050"
+          fechaturno: "23/01/2023"
+          flag: "SI"
+          nacimiento: "20/02/1988"
+          nombres: "MARIA SILVANA"
+          nrodocumento: "12654852"
+          resultado: "APTO"
+          sexo: "F"
+          status: "OK"
+          tipodocumento: "96"
+    Sin_Datos:
+      summary: Sin datos
+      value:
+        outCONIunique:
+          apellidomaterno: ""
+          apellidopaterno: ""
+          coddestino: ""
+          codresultado: ""
+          descrtipodoc: ""
+          destino: ""
+          expediente: ""
+          fechaturno: ""
+          flag: "NO"
+          nacimiento: ""
+          nombres: ""
+          nrodocumento: ""
+          resultado: ""
+          sexo: ""
+          status: "SIN DATOS"
+          tipodocumento: ""

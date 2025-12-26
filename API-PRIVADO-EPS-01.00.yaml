@@ -1,0 +1,74 @@
+openapi: 3.1.0
+info:
+  title: DIC — Empleado Público Status (EPS)
+  version: "01.00"
+  description: |
+    Indica si un **CUIL** posee legajo activo en el Gobierno de Mendoza.
+    Fuente: API-PRIVADO EPS-01.00 para catálogo. REST **POST**.
+servers:
+  - url: https://{URL_SERV_SEG}/r1/mendoza/DIC/002/SERVICIOCIUDADANO/verificaMatriculaTst
+    description: Testing indicado en el documento (literal `{URL_SERV_SEG}`).
+    variables:
+      URL_SERV_SEG: { default: xroad-test.mendoza.gov.ar }
+tags: [{ name: ServicioCiudadano }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "UUID v4 recomendado; admite prefijos/cadenas."
+  schemas:
+    EPSRequest:
+      type: object
+      properties:
+        cuil:
+          type: string
+          description: "CUIL de 11 dígitos (o 13 con guiones)."
+      required: [cuil]
+    EPSResponse:
+      type: object
+      properties:
+        response:
+          type: object
+          properties:
+            flag: { type: string, enum: ["SI","NO"] }
+            esEmpPublico: { type: boolean }
+            mjeError: { type: string }
+      required: [response]
+paths:
+  /verificaMatriculaTst:
+    post:
+      tags: [ServicioCiudadano]
+      summary: Verificar si es empleado público (legajo activo)
+      operationId: empleadoPublicoStatus
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadIssue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EPSRequest" }
+            examples:
+              exito:
+                value: { cuil: "20-33482558-3" }
+              fracaso:
+                value: { cuil: "23-31188227-9" }
+      responses:
+        "200":
+          description: Único HTTP indicado (éxito o error de aplicación).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EPSResponse" }
+              examples:
+                exito:
+                  value: { response: { flag: "SI", esEmpPublico: true } }
+                fracaso:
+                  value: { response: { flag: "NO", esEmpPublico: false, mjeError: "No se encontró información con el cuil dado." } }

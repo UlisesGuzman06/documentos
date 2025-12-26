@@ -1,0 +1,108 @@
+openapi: 3.1.0
+info:
+  title: DIC — Generador de URL Ticket Detalle (URLTD)
+  version: "1.0.1"
+  description: |
+    Servicio para **generar** la URL de detalle/seguimiento de un ticket.
+    Documento: API-DIC-PUBLICO-URLTD-1.0.1 (no indica URL/path HTTP exacto).
+servers:
+  - url: https://{nodoXroad}
+    description: Servidor no indicado en el documento oficial.
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags: [{ name: DIC }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "Identificador único (UUID v4 recomendado)."
+  schemas:
+    Owner:
+      type: object
+      properties:
+        type_document: { type: string, enum: ["DNI","CUIL","PASS","CUIT"] }
+        document: { type: string, maxLength: 20 }
+      required: [type_document, document]
+    ParminTD:
+      type: object
+      properties:
+        owner: { $ref: "#/components/schemas/Owner" }
+        ticketnro: { type: integer, example: 106633 }
+      required: [owner, ticketnro]
+    Mensaje:
+      type: object
+      properties:
+        Description: { type: string, maxLength: 256 }
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+      required: [Description, Id, Type]
+    Status:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["S","N"] }
+        Messages:
+          type: array
+          items: { $ref: "#/components/schemas/Mensaje" }
+      required: [Flag]
+    UrlTDResponse:
+      type: object
+      properties:
+        response: { type: string, maxLength: 1024, description: "URL generada/encriptada" }
+        status: { $ref: "#/components/schemas/Status" }
+paths:
+  /NO_INDICADO_EN_DOCUMENTO:
+    post:
+      tags: [DIC]
+      summary: Generar URL de ticket detalle
+      description: "El path HTTP **no está indicado** en el documento oficial."
+      operationId: generarUrlTicketDetalle
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadIssue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                parmin: { $ref: "#/components/schemas/ParminTD" }
+              required: [parmin]
+            examples:
+              ejemplo:
+                value:
+                  parmin:
+                    owner: { type_document: "DNI", document: "39377856" }
+                    ticketnro: 106633
+      responses:
+        "200":
+          description: Único HTTP documentado (éxito o error de aplicación).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UrlTDResponse" }
+              examples:
+                exito:
+                  value:
+                    response: "http://dicaptst1.mendoza.gov.ar:8080/ticketspubtst/com.tickets.pubticketdetalleif?..."
+                    status: { Flag: "S" }
+                error_EmptyTicket:
+                  value:
+                    response: ""
+                    status:
+                      Flag: "N"
+                      Messages: [{ Description: "Error: Es obligatorio ingresar número de ticket", Id: "EmptyTicket", Type: 1 }]
+                error_WrongTicket:
+                  value:
+                    response: ""
+                    status:
+                      Flag: "N"
+                      Messages: [{ Description: "Error: El ticket ingresado no pertenece al solicitante indicado", Id: "WrongTicket", Type: 1 }]

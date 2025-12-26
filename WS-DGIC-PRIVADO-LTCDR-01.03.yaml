@@ -1,0 +1,97 @@
+openapi: 3.1.0
+info:
+  title: WS Listado de Turnos (CDR)
+  version: "01.03"
+  description: |
+    Servicio para **listar turnos** según filtros de fecha/centro/trámite.
+    Fuente: WS-DGIC-PRIVADO-LTCDR-01.03.
+servers:
+  - url: http://dicapprdb.mendoza.gov.ar:8080/servicioscdrtst/WebServCDR
+    description: Testing (según convención CDR).
+tags:
+  - name: CDR
+paths:
+  /WSListadoTurnos:
+    get:
+      tags: [CDR]
+      summary: Lista turnos por filtros
+      operationId: listarTurnos
+      parameters:
+        - name: fchDesde
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: fchHasta
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: codCentro
+          in: query
+          required: false
+          schema: { type: integer }
+        - name: codTramite
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Único HTTP documentado. `flag=1` éxito; `flag=9` sin datos/errores.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListadoTurnosResponse'
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Sin_Datos:
+                  $ref: '#/components/examples/Sin_Datos'
+components:
+  schemas:
+    Mensaje:
+      type: object
+      properties:
+        codMsg: { type: integer }
+        textoMsg: { type: string }
+      required: [codMsg, textoMsg]
+    Turno:
+      type: object
+      properties:
+        codTurno: { type: string, maxLength: 21 }
+        codCentro: { type: integer }
+        codTramite: { type: integer }
+        fecha: { type: string, format: date }
+        hora: { type: string }
+        estado: { type: string }
+    ListadoTurnosResponse:
+      type: object
+      properties:
+        flag:
+          type: integer
+          enum: [1, 9]
+        turnos:
+          type: array
+          items: { $ref: '#/components/schemas/Turno' }
+        mensajes:
+          type: array
+          items: { $ref: '#/components/schemas/Mensaje' }
+      required: [flag]
+  examples:
+    Exito:
+      summary: Con resultados
+      value:
+        flag: 1
+        turnos:
+          - codTurno: "08138702072025010000101"
+            codCentro: 1
+            codTramite: 2
+            fecha: "2025-07-02"
+            hora: "08:00"
+            estado: "CONFIRMADO"
+    Sin_Datos:
+      summary: Sin resultados en rango
+      value:
+        flag: 9
+        turnos: []
+        mensajes:
+          - codMsg: 4001
+            textoMsg: "ATENCIÓN: sin turnos !"

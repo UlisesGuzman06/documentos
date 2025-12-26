@@ -1,0 +1,42 @@
+openapi: 3.1.0
+info:
+  title: Creación de Tarea (Testing)
+  version: "1.0.0"
+  description: |
+    Servicio de **creación de tarea** (entorno testing).
+    Fuente: crear tarea tst.pdf.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Base X-Road (Testing).
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: Utilitarios
+paths:
+  /CrearTareaTST:
+    post:
+      tags: [Utilitarios]
+      summary: Crea una tarea
+      operationId: crearTarea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                titulo: { type: string }
+                descripcion: { type: string }
+                prioridad: { type: string, enum: ["BAJA","MEDIA","ALTA"] }
+              required: [titulo]
+      responses:
+        "200":
+          description: Único HTTP documentado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  status: { type: string, enum: ["CREADA","ERROR"] }

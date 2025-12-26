@@ -1,0 +1,115 @@
+openapi: 3.1.0
+info:
+  title: WS Baja de Turnos (CDR)
+  version: "01.02"
+  description: |
+    Servicio para **dar de baja** un turno existente en CDR.
+
+    Reglas (según documento WS-DGIC-PRIVADO-BTCDR-01.02):
+    - Tipo: REST
+    - Método: **POST**
+    - Testing: `http://dicapprdb.mendoza.gov.ar:8080/servicioscdrtst/WebServCDR/WSBajaTurn`
+    - Producción: No indicado en el documento oficial.
+servers:
+  - url: http://dicapprdb.mendoza.gov.ar:8080/servicioscdrtst/WebServCDR
+    description: Testing (según PDF)
+tags:
+  - name: CDR
+paths:
+  /WSBajaTurn:
+    post:
+      tags: [CDR]
+      summary: Da de baja un turno
+      operationId: bajaTurno
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BajaTurnoRequest'
+            examples:
+              Ejemplo:
+                value:
+                  CodCentro: 2
+                  FchTurno: "2022-10-27"
+                  SegmentoTurn: 1
+                  NroTurno: 29
+      responses:
+        "200":
+          description: Único HTTP documentado. `flag=1` éxito, `flag=9` error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BajaTurnoResponse'
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_NoExiste_Centro:
+                  $ref: '#/components/examples/Error_NoExiste_Centro'
+                Error_Faltan_Datos:
+                  $ref: '#/components/examples/Error_Faltan_Datos'
+components:
+  schemas:
+    BajaTurnoRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        CodCentro:
+          type: integer
+          description: Código de identificación de Centro.
+        FchTurno:
+          type: string
+          format: date
+          description: Fecha del turno.
+        SegmentoTurn:
+          type: integer
+          description: Parte del día.
+          enum: [1, 2, 3]
+        NroTurno:
+          type: integer
+          description: Número de turno.
+      required: [CodCentro, FchTurno, SegmentoTurn, NroTurno]
+    Mensaje:
+      type: object
+      additionalProperties: false
+      properties:
+        codMsg:
+          type: integer
+        textoMsg:
+          type: string
+          maxLength: 512
+      required: [codMsg, textoMsg]
+    BajaTurnoResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        flag:
+          type: integer
+          enum: [1, 9]
+        mensajes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Mensaje'
+      required: [flag]
+  examples:
+    Exito:
+      summary: Turno eliminado
+      value:
+        flag: 1
+        mensajes:
+          - codMsg: 5001
+            textoMsg: "OK: turno 2022-10-27 nº 129 fue ELIMINADO"
+    Error_NoExiste_Centro:
+      summary: Centro inexistente
+      value:
+        flag: 9
+        mensajes:
+          - codMsg: 5009
+            textoMsg: "ERROR: NO EXISTE Oficina/Centro Atención en la base de datos"
+    Error_Faltan_Datos:
+      summary: Faltan datos del turno
+      value:
+        flag: 9
+        mensajes:
+          - codMsg: 5012
+            textoMsg: "Atención: Falta completar datos del turno"

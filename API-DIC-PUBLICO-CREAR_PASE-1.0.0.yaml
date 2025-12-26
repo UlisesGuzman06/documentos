@@ -1,0 +1,72 @@
+openapi: 3.1.0
+info:
+  title: Creación de Pase de GDE (DIC)
+  version: "1.0.0"
+  description: |
+    Servicio para **crear pase** en un expediente GDE.
+    Fuente: Creación de Pase de GDE.pdf.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Base X-Road (Testing).
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GDE
+paths:
+  /GDECreacionPaseTST:
+    post:
+      tags: [GDE]
+      summary: Crea un pase sobre un expediente
+      operationId: crearPaseGDE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestCreacionPase'
+            examples:
+              Ejemplo:
+                value:
+                  RequestCreacionPase:
+                    CodigoExpedienteElectronico: "EX-2021-00060484--GDEMZA-CGPROV%23MHYF"
+                    UsuarioGDE: "GUILLERMOGARCIA"
+                    Motivo: "Derivación"
+                    DestinoTipo: "USUARIO"
+                    DestinoCodigo: "SIDICO"
+      responses:
+        "200":
+          description: Único HTTP documentado (`Flag C/E`).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  SDTResultado:
+                    type: object
+                    properties:
+                      Flag: { type: string, enum: ["C","E"] }
+                      Messages:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            Id: { type: string }
+                            Type: { type: integer, enum: [0,1,2,3] }
+                            Description: { type: string }
+                    required: [Flag]
+components:
+  schemas:
+    RequestCreacionPase:
+      type: object
+      properties:
+        RequestCreacionPase:
+          type: object
+          properties:
+            CodigoExpedienteElectronico: { type: string, maxLength: 200 }
+            UsuarioGDE: { type: string, maxLength: 30 }
+            Motivo: { type: string, maxLength: 9999 }
+            DestinoTipo: { type: string, enum: ["MESA","REPARTICION","SECTOR","USUARIO"] }
+            DestinoCodigo: { type: string, maxLength: 9999 }
+          required: [CodigoExpedienteElectronico, UsuarioGDE, Motivo, DestinoTipo, DestinoCodigo]
+      required: [RequestCreacionPase]

@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: DIC — Creación de Avance (CRA)
+  version: "1.0.4"
+  description: |
+    Servicio para **crear un avance** en un ticket.
+    Documento: API-DIC-PUBLICO-CRA-1.0.4 (no indica URL/path HTTP exacto).
+servers:
+  - url: https://{nodoXroad}
+    description: Servidor no indicado en el documento oficial.
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags: [{ name: DIC }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "Identificador único (UUID v4 recomendado). Admite prefijos/cadenas."
+  schemas:
+    ArchivoFU:
+      type: object
+      properties:
+        FullName: { type: string, maxLength: 20 }
+        Name: { type: string, maxLength: 20 }
+        Extension: { type: string, maxLength: 20 }
+        Size: { type: integer, maximum: 9999999999 }
+        File: { type: string, description: "blob/base64" }
+      required: [FullName, Name, Extension, Size, File]
+    Archivo:
+      type: object
+      properties:
+        archivoCodigo: { type: string, description: "base64", maxLength: 6000000 }
+        archivoNombre: { type: string, maxLength: 256 }
+        archivoExtension: { type: string, maxLength: 10 }
+      required: [archivoCodigo, archivoNombre, archivoExtension]
+    AvanceACrear:
+      type: object
+      properties:
+        SistemaCodigo: { type: string, maxLength: 20, example: "PORTALWEB" }
+        ticketNro: { type: integer, example: 106646 }
+        avnDsc: { type: string, description: "Descripción del avance", maxLength: 16384 }
+        avnCod: { type: integer, description: "Código del último avance (puede ir vacío)" }
+        archivosFU:
+          type: array
+          items: { $ref: "#/components/schemas/ArchivoFU" }
+        medioDeLlamado: { type: string, enum: ["APP","WEB"] }
+        archivos:
+          type: array
+          items: { $ref: "#/components/schemas/Archivo" }
+      required: [SistemaCodigo, ticketNro, avnDsc, medioDeLlamado]
+    Mensaje:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["S","N"] }
+        Messages:
+          type: array
+          items: { $ref: "#/components/schemas/Mensaje" }
+      required: [Flag, Messages]
+paths:
+  /NO_INDICADO_EN_DOCUMENTO:
+    post:
+      tags: [DIC]
+      summary: Crear avance en ticket
+      description: "El path HTTP **no está indicado** en el documento oficial."
+      operationId: crearAvance
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadIssue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                AvanceACrear: { $ref: "#/components/schemas/AvanceACrear" }
+              required: [AvanceACrear]
+            examples:
+              ejemplo:
+                value:
+                  AvanceACrear:
+                    SistemaCodigo: "CONSULTAPUBLICA"
+                    ticketNro: 106710
+                    avnDsc: "Test requiere info solicitante"
+                    avnCod: 0
+                    archivosFU: [{ FullName: "", Name: "", Extension: "", Size: 0, File: "" }]
+                    medioDeLlamado: "web"
+                    archivos: [{ archivoCodigo: "", archivoNombre: "", archivoExtension: "" }]
+      responses:
+        "200":
+          description: Único HTTP documentado (éxito o error de aplicación).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SDTResultado" }
+              examples:
+                exito:
+                  value:
+                    Flag: "S"
+                    Messages:
+                      - { Id: "AvanceGeneradoCorrectamente", Type: 0, Description: "Muchas gracias por su colaboración. En breve un operador verificará la documentación y se pondrá en contacto por este medio." }
+                error_EmptyTicketNro:
+                  value:
+                    Flag: "N"
+                    Messages:
+                      - { Id: "EmptyTicketNro", Type: 1, Description: "Error: Número de ticket requerido" }
+                error_WrongMedioLlamado:
+                  value:
+                    Flag: "N"
+                    Messages:
+                      - { Id: "WrongMedioLlamado", Type: 1, Description: "Error: Medio de llamado inválido. valores admitidos: 'APP' o 'WEB'" }
+                error_SinDescripcion:
+                  value:
+                    Flag: "N"
+                    Messages:
+                      - { Id: "SinDescripcion", Type: 1, Description: "ERROR: Debe ingresar obligatoriamente la descripción del avance." }

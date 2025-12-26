@@ -1,0 +1,65 @@
+openapi: 3.1.0
+info:
+  title: IPAP — Datos para Certificados de Cursos (CDCI)
+  version: "01.00"
+  description: |
+    Devuelve **datos para certificados** de cursos de IPAP.
+    Fuente: *Copia de servicios_ipap catalogo.pdf* (API-IPAP-PUBLICO-CDCI-01.00).
+    Reglas: REST **GET**. El documento **no indica** un path HTTP X‑Road inequívoco.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/IPAP/001/PUBLICO
+    description: "Testing (convención X‑Road). Path no indicado en el documento oficial."
+    variables:
+      nodoXroad: { default: xroad-test.mendoza.gov.ar }
+tags: [{ name: IPAP }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "UUID v4 recomendado; admite prefijos/cadenas."
+    Documento:
+      name: documento
+      in: query
+      required: true
+      schema: { type: string, maxLength: 11 }
+      description: "Documento del interesado (Varchar; tamaño 11 según PDF). Ej.: 27320771108"
+  schemas:
+    CDCIResponse:
+      type: object
+      properties:
+        response:
+          type: object
+          properties:
+            flag: { type: string, enum: ["SI","NO"] }
+          additionalProperties: true
+      required: [response]
+paths:
+  /NO_INDICADO_EN_DOCUMENTO:
+    get:
+      tags: [IPAP]
+      summary: Obtener datos para certificado de curso
+      description: "El documento no brinda el path HTTP; se documenta sin inventar."
+      operationId: obtenerDatosCertificadoCurso
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadIssue"
+        - $ref: "#/components/parameters/Documento"
+      responses:
+        "200":
+          description: Único HTTP indicado (éxito o no, según bandera). Sin otros códigos HTTP.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CDCIResponse" }
+              examples:
+                exito:
+                  value: { response: { flag: "SI", curso: "Nombre del curso", fecha: "2024-01-01" } }
+                no_encontrado:
+                  value: { response: { flag: "NO" } }

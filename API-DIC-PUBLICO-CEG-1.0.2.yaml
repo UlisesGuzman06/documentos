@@ -1,0 +1,204 @@
+openapi: 3.1.0
+info:
+  title: Consulta de Expedientes GDE (DIC)
+  version: "1.0.2"
+  description: |
+    Servicio para **consultar datos de un expediente** enviando su código y devolviendo
+    la estructura `SDTExpedienteElectronico` junto con `SDTResultado`.
+
+    Reglas (según PDF oficial):
+    - Tipo: REST
+    - Método: **POST**
+    - Observaciones: Servicio disponible en EDI Mendoza.
+    - Restricciones:
+      - Subsistema productor: `capaserviciosgx`.
+      - Headers:
+        - `X-Road-Client` (**obligatorio**)
+        - `X-Road-UserId`
+        - `X-Road-Issue` (**obligatorio**, **UUID v4 recomendado**; se admiten cadenas `App2-App1-<uuid>`).
+    - **Endpoint mostrado en el documento:** `api/v1/Expedientes/Consulta` (el PDF no indica URL X‑Road de test para este servicio).
+    - Producción: no indicada explícitamente en el documento.
+
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Nodo X‑Road (Testing por defecto). La ruta del servicio se indica en `paths`.
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+
+tags:
+  - name: GDE
+
+paths:
+  /api/v1/Expedientes/Consulta:
+    post:
+      tags: [GDE]
+      summary: Consulta un expediente por código
+      description: Devuelve datos del expediente y `SDTResultado`.
+      operationId: consultarExpedienteGDE
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+        - $ref: '#/components/parameters/Cod'
+      responses:
+        "200":
+          description: Éxito o error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  SDTExpedienteElectronico:
+                    $ref: '#/components/schemas/SDTExpedienteElectronico'
+                  SDTResultado:
+                    $ref: '#/components/schemas/SDTResultado'
+                required: [SDTResultado]
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_Expediente_NoValido:
+                  $ref: '#/components/examples/Error_Expediente_NoValido'
+                Error_Filtros_Vacios_CodigoExpediente:
+                  $ref: '#/components/examples/Error_Filtros_Vacios_CodigoExpediente'
+
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+      description: Cliente autorizado (X‑Road).
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+      description: Usuario que inicia la solicitud.
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: |
+        Identificador único de la transacción. **UUID v4** recomendado.
+        Se permiten cadenas con prefijos de aplicaciones: `App2-App1-<uuid>`.
+    Cod:
+      name: Cod
+      in: query
+      required: true
+      description: |
+        Código del expediente electrónico (máx. 200).
+        Si contiene `#`, usar percent-encoding: `#` → `%23`.
+      schema:
+        type: string
+        maxLength: 200
+      examples:
+        ejemplo:
+          summary: Ejemplo con `%23`
+          value: EX-2022-00011642--GDEMZA-OSEP%23MSDSYD
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag:
+          type: string
+          enum: ["C","E"]
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag, Messages]
+    SDTExpedienteElectronico:
+      type: object
+      properties:
+        CodigoExpedienteElectronico: { type: string, maxLength: 200 }
+        CodigoTrata: { type: string }
+        DescripcionTrata: { type: string }
+        EstadoExpediente: { type: string }
+        SistemaOrigen: { type: string }
+        DescripcionTramite: { type: string }
+        FechaCaratulacion: { type: string, format: date-time }
+        UsuarioCaratulacion: { type: string }
+        UbicacionActualUsuarioCodigo: { type: string }
+        UbicacionActualUsuarioNombre: { type: string }
+        UbicacionActualReparticionCodigo: { type: string }
+        UbicacionActualReparticionNombre: { type: string }
+        UbicacionActualSectorCodigo: { type: string }
+        UbicacionActualSectorNombre: { type: string }
+        UbicacionActualFechaIngreso: { type: string, format: date-time }
+        ArchivosAdjuntos:
+          type: array
+          items:
+            type: object
+            properties:
+              CodigoArchivo: { type: string, maxLength: 200 }
+            required: [CodigoArchivo]
+        DocumentosOficiales:
+          type: array
+          items:
+            type: object
+            properties:
+              CodigoDocumento: { type: string, maxLength: 200 }
+            required: [CodigoDocumento]
+        Expedientes:
+          type: array
+          items:
+            type: object
+            properties:
+              CodigoExpedienteElectronico: { type: string, maxLength: 200 }
+            required: [CodigoExpedienteElectronico]
+  examples:
+    Exito:
+      summary: Caso de éxito
+      value:
+        SDTExpedienteElectronico:
+          CodigoExpedienteElectronico: "EX-2022-00011642--GDEMZA-OSEP#MSDSYD"
+          CodigoTrata: "DIC00003"
+          DescripcionTramite: "Expediente de prueba desde capa de servicios"
+          DescripcionTrata: "Pago de Factura"
+          DocumentosOficiales:
+            - CodigoDocumento: "PV-2022-00011643-GDEMZA-OSEP#MSDSYD"
+          EstadoExpediente: "Iniciación"
+          FechaCaratulacion: "2022-11-11T16:07:29"
+          Motivo: ""
+          SistemaOrigen: "DIC_TST"
+          UbicacionActualFechaIngreso: "2022-11-11T16:07:33"
+          UbicacionActualReparticionCodigo: ""
+          UbicacionActualReparticionNombre: ""
+          UbicacionActualSectorCodigo: ""
+          UbicacionActualSectorNombre: ""
+          UbicacionActualUsuarioCodigo: "GUILLERMOGARCIA"
+          UbicacionActualUsuarioNombre: "Guillermo Germán GARCIA"
+          UsuarioCaratulacion: "GUILLERMOGARCIA"
+        SDTResultado:
+          Flag: "C"
+          Messages:
+            - Description: "Se ha encontrado un expediente electrónico con el código ingresado."
+              Id: "ExpedienteElectronico_Encontrado"
+              Type: 0
+    Error_Expediente_NoValido:
+      summary: Error - expediente inexistente/no válido
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "El expediente ingresado no existe en sistema GDE."
+              Id: "Expediente_NoValido"
+              Type: 1
+    Error_Filtros_Vacios_CodigoExpediente:
+      summary: Error - código de expediente vacío
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe completar el código del expediente a consultar."
+              Id: "Filtros_Vacios_CodigoExpediente"
+              Type: 1

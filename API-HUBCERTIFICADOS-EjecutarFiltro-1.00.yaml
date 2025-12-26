@@ -1,0 +1,146 @@
+openapi: 3.1.0
+info:
+  title: HUBCERTIFICADOS — EjecutarFiltro
+  version: "1.00"
+  description: |
+    Ejecuta un **filtro** del Hub de Certificados.
+    Fuente: US-1309 *EjecutarFiltro* (V.01.00).
+servers:
+  - url: https://{nodoXroad}
+    description: Base X-Road
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: HubCertificados
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-userid
+      in: header
+      required: false
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "Identificador único (UUID v4 recomendado). Admite prefijos: NombreApp-<uuid>."
+  schemas:
+    Parametro:
+      type: object
+      properties:
+        nombre: { type: string }
+        valor: { type: string }
+      required: [nombre, valor]
+    EjecutarFiltroRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        ticket: { type: string, description: "API Key" }
+        parametros:
+          type: array
+          items: { $ref: "#/components/schemas/Parametro" }
+        filtro: { type: integer }
+        issue: { type: string }
+      required: [ticket, filtro, issue]
+    ResultadoBase:
+      type: object
+      properties:
+        columnas:
+          type: array
+          items: { type: string }
+        filas:
+          type: array
+          items:
+            type: array
+            items: { type: string }
+        visibles:
+          type: array
+          items: { type: boolean }
+        hayDatos: { type: boolean }
+        message:
+          nullable: true
+          oneOf: [{ type: "string" }, { type: "null" }]
+        respuestaOK: { type: boolean }
+    ResultadoCertificado:
+      allOf:
+        - $ref: "#/components/schemas/ResultadoBase"
+        - type: object
+          properties:
+            certificado: { type: integer, minimum: 0 }
+          required: [certificado]
+    ResultadoFiltro:
+      allOf:
+        - $ref: "#/components/schemas/ResultadoBase"
+        - type: object
+          properties:
+            certificado: { type: integer, enum: [-1] }
+            parametrosProxPaso:
+              type: array
+              items:
+                type: object
+                properties:
+                  columnaPosicion: { type: integer }
+                  nombreParametro: { type: string }
+                required: [columnaPosicion, nombreParametro]
+            proximoFiltro: { type: integer, minimum: 0 }
+          required: [certificado, proximoFiltro]
+paths:
+  /mendoza/GPE/028/HUBSERVICIOS/EjecutarFiltro.tst:
+    post:
+      tags: [HubCertificados]
+      summary: Ejecutar filtro (TEST)
+      operationId: ejecutarFiltroTst
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadUserId"
+        - $ref: "#/components/parameters/XRoadIssue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EjecutarFiltroRequest" }
+            examples:
+              ejemplo:
+                value:
+                  ticket: "afcf4a74eadd74a03be4fae671f72726341201180"
+                  parametros: [{ nombre: "dni", valor: "16856789" }]
+                  filtro: 5
+                  issue: "certificadousuario123456"
+      responses:
+        "200":
+          description: Único HTTP documentado.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ResultadoCertificado"
+                  - $ref: "#/components/schemas/ResultadoFiltro"
+              examples:
+                certificado:
+                  value:
+                    certificado: 4
+                    columnas: ["DNI","Nombre","Nombre del Padre"]
+                    filas: [[]]
+                    hayDatos: false
+                    message: null
+                    respuestaOK: true
+                filtro:
+                  value:
+                    certificado: -1
+                    columnas: ["DNI","Nombre","Nombre del Padre"]
+                    filas:
+                      - ["46523478","EZEQUIEL","JUAN PEREZ"]
+                      - ["47412789","FRANCO","JUAN PEREZ"]
+                    parametrosProxPaso: [{ columnaPosicion: 0, nombreParametro: "dni" }]
+                    proximoFiltro: 5
+                    visibles: [true,true,true]
+                    hayDatos: false
+                    message: null
+                    respuestaOK: true

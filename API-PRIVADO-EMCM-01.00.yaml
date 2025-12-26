@@ -1,0 +1,78 @@
+openapi: 3.1.0
+info:
+  title: DIC — Estado Matriculados Colegios Profesionales (EMCM)
+  version: "01.00"
+  description: |
+    Consulta el **estado de matrícula** en colegios profesionales (p.ej., Colegio de Abogados/Procuradores).
+    Fuente: *Consulta matricula colegios profesionales para catálogo*.
+    Reglas: REST **POST**. El documento no declara un path X‑Road inequívoco.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/SERVICIOCIUDADANO
+    description: "Testing (convención X‑Road). Path no indicado en el documento oficial."
+    variables:
+      nodoXroad: { default: xroad-test.mendoza.gov.ar }
+tags: [{ name: ServicioCiudadano }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "UUID v4 recomendado; admite prefijos/cadenas (App-<uuid>, App2-App1-<uuid>)."
+  schemas:
+    EMCMRequest:
+      type: object
+      properties:
+        documento:
+          type: string
+          description: "Número de documento (según PDF)."
+      required: [documento]
+    EMCMResponse:
+      type: object
+      properties:
+        response:
+          type: object
+          properties:
+            flag: { type: string, enum: ["SI","NO"] }
+            mensaje: { type: string }
+            titulo: { type: string, description: "Identificación del título si aplica (según PDF)" }
+            estado: { type: string, description: "Código de estado según PDF del colegio" }
+          additionalProperties: true
+      required: [response]
+paths:
+  /NO_INDICADO_EN_DOCUMENTO:
+    post:
+      tags: [ServicioCiudadano]
+      summary: Verificar estado de matrícula profesional
+      description: "El documento no especifica explícitamente el path; se deja constancia (sin inventar)."
+      operationId: verificarMatricula
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadIssue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EMCMRequest" }
+            examples:
+              ejemplo:
+                value: { documento: "33482558" }
+      responses:
+        "200":
+          description: Único HTTP indicado por el documento (éxito o fallo por bandera). Sin otros códigos HTTP.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EMCMResponse" }
+              examples:
+                exito_habilitada:
+                  value:
+                    response: { flag: "SI", mensaje: "Matrícula habilitada", estado: "1" }
+                fracaso_sin_matricula:
+                  value:
+                    response: { flag: "NO", mensaje: "No registra matriculación" }

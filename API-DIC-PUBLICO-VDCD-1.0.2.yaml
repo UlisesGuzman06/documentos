@@ -1,0 +1,117 @@
+openapi: 3.1.0
+info:
+  title: Vinculación Definitiva de Documentos DIC (VDCD)
+  version: "1.0.2"
+  description: |
+    Vinculación **definitiva** de documentos a un expediente GDE.
+    Documento: API-DIC-PUBLICO-VDCD-1.0.2
+
+    Reglas de operación (estricto):
+    - Tipo: REST
+    - Método: **GET**
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Testing (X-Road). Path específico en `paths`.
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GDE
+paths:
+  /GDE/VinculacionDocumentosDefinitivaTST:
+    get:
+      tags: [GDE]
+      summary: Vinculación definitiva de documentos a un expediente
+      operationId: vinculacionDocumentosDefinitiva
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestVinculacionDefinitivaDocumentosExpediente'
+            examples:
+              ejemplo:
+                value:
+                  RequestVinculacionDefinitivaDocumentosExpediente:
+                    Operacion: "V"
+                    CodigoExpedienteElectronico: "EX-2022-00011642--GDEMZA-OSEP%23MSDSYD"
+                    Usuario: "GUILLERMOGARCIA"
+                    DocumentosAVincular:
+                      - "CGP-2021-00060492-GDEMZA-CGPROV%23MHYF"
+      responses:
+        "200":
+          description: Único HTTP documentado. `Flag=C` éxito, `Flag=E` error de aplicación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SDTResultado'
+              examples:
+                exito:
+                  value:
+                    Flag: "C"
+                    Messages:
+                      - Description: "Se han vinculado en forma definitiva los documentos no definitivos del expediente EX-2022-00011642--GDEMZA-OSEP%23MSDSYD."
+                        Id: "DocumentosElectronicos_Vinculados"
+                        Type: 0
+                error_Operacion_Vacio:
+                  value:
+                    Flag: "E"
+                    Messages:
+                      - Description: "Debe completar la operación que desea realizar: 'D' (Desvincular documentos) o 'V' (Vincular documentos)."
+                        Id: "Operacion_Vacio"
+                        Type: 1
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "UUID v4 recomendado; permite prefijos/cadenas: App-<uuid>, App2-App1-<uuid>."
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag]
+    RequestVinculacionDefinitivaDocumentosExpediente:
+      type: object
+      properties:
+        RequestVinculacionDefinitivaDocumentosExpediente:
+          type: object
+          properties:
+            Operacion:
+              type: string
+              maxLength: 1
+              enum: ["D","V"]
+            CodigoExpedienteElectronico: { type: string, maxLength: 200 }
+            Usuario: { type: string, maxLength: 30 }
+            DocumentosAVincular:
+              type: array
+              items: { type: string, maxLength: 200 }
+          required: [Operacion, CodigoExpedienteElectronico, Usuario]
+      required: [RequestVinculacionDefinitivaDocumentosExpediente]

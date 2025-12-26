@@ -1,0 +1,240 @@
+openapi: 3.1.0
+info:
+  title: Consulta de Normas y Edictos (BOE)
+  version: "1.0.1"
+  description: |
+    Servicio para consultar **Normas y Edictos** del Boletín Oficial según filtros.
+
+    Reglas (según documento oficial):
+    - Tipo: REST
+    - Método: **POST**
+    - Ambiente test: `https://{nodoXroad}/r1/.mendoza.gov.ar/consultaboletintst/rest/wsrconsultanormasedictos`
+    - Autorización: **Bearer Token** (requerido).
+servers:
+  - url: https://{nodoXroad}/r1/.mendoza.gov.ar
+    description: Test (ruta base tomada del documento)
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: BoletínOficial
+paths:
+  /consultaboletintst/rest/wsrconsultanormasedictos:
+    post:
+      tags: [BoletínOficial]
+      summary: Consulta de Normas y Edictos
+      operationId: consultarNormasEdictos
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestCNE'
+            examples:
+              Ejemplo:
+                value:
+                  request:
+                    payload:
+                      SistemaBoletinAConsultar: "2"
+                      FechaPublicacionDesde: "2024-03-08"
+                      FechaPublicacionHasta: "2024-03-08"
+                      TipoBusqueda: "NORMA"
+                      TipoNorma: ""
+                      OrigenId: ""
+                      EdictoTema: ""
+                      EdictoTexto: ""
+                      Anexo: ""
+                      NormaNumero: ""
+                      FechaPromulgDesde: ""
+                      FechaPromulgHasta: ""
+                      NormaEdictoId: ""
+                      BoletoNumero: ""
+                      CadNro: ""
+      responses:
+        "200":
+          description: Éxito (flag='S') o error de aplicación (flag='N'). Único HTTP documentado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseCNE'
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Token_Invalido:
+                  $ref: '#/components/examples/Token_Invalido'
+                Filtros_Incompletos:
+                  $ref: '#/components/examples/Filtros_Incompletos'
+                Fecha_Publicacion_Desde_Futura:
+                  $ref: '#/components/examples/Fecha_Publicacion_Desde_Futura'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: |
+        Identificador único de la transacción. **UUID v4** recomendado.
+        Se permiten cadenas con prefijos de aplicaciones: `App2-App1-<uuid>`.
+  schemas:
+    RequestCNE:
+      type: object
+      properties:
+        request:
+          type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                SistemaBoletinAConsultar: { type: string, maxLength: 1, description: "1: Sistema anterior, 2: Nuevo sistema" }
+                BoletinFecha: { type: string, format: date }
+                FechaPublicacionDesde: { type: string, format: date }
+                FechaPublicacionHasta: { type: string, format: date }
+                TipoBusqueda: { type: string, maxLength: 20, enum: ["NORMA","EDICTO",""] }
+                TipoNorma: { type: string, maxLength: 4 }
+                OrigenId: { type: string, maxLength: 4 }
+                EdictoTema: { type: string, maxLength: 255 }
+                EdictoTexto: { type: string, maxLength: 4097152 }
+                Anexo: { type: string, maxLength: 1, enum: ["S","N",""] }
+                NormaNumero: { type: string, maxLength: 10 }
+                FechaPromulgDesde: { type: string, format: date }
+                FechaPromulgHasta: { type: string, format: date }
+                NormaEdictoId: { type: string, maxLength: 10 }
+                BoletoNumero: { type: string, maxLength: 200 }
+                CadNro: { type: string, maxLength: 10 }
+              required: []
+          required: [payload]
+      required: [request]
+    ResponseCNE:
+      type: object
+      properties:
+        response:
+          type: object
+          properties:
+            data:
+              oneOf:
+                - type: object
+                  properties:
+                    EdictosNormas:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          BoletinFecha: { type: string, format: date }
+                          BoletinNumero: { type: string }
+                          BoletoNro: { type: string }
+                          CadNro: { type: string }
+                          PublicacionPedidoCantPub: { type: integer }
+                          PublicacionPedidoConAnexos: { type: string, enum: ["SI","NO"] }
+                          PublicacionPedidoEdictoDscOrigen: { type: string }
+                          PublicacionPedidoEdictoTEDesc: { type: string }
+                          PublicacionPedidoEdictoTEOrden: { type: integer }
+                          PublicacionPedidoEdictoTETipo: { type: string, enum: ["NORMA","EDICTO"] }
+                          PublicacionPedidoEdictoTETitulo: { type: string }
+                          PublicacionPedidoEdictoTema: { type: string }
+                          PublicacionPedidoEdictoTextoEditado: { type: string }
+                          PublicacionPedidoId: { type: string }
+                          Publicacion_fecha_propuesta: { type: string, format: date }
+                          Publicacion_fecha_pub: { type: string, format: date }
+                          Ruta_Anexo_PDF: { type: string, maxLength: 1000 }
+                          Ruta_Boletin_PDF: { type: string, maxLength: 1000 }
+                          Ruta_Pedido_PDF: { type: string, maxLength: 1000 }
+                          SuplementoNumero: { type: integer }
+                - type: array
+                  items: {}
+            status:
+              type: object
+              properties:
+                flag: { type: string, enum: ["S","N"] }
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      description: { type: string }
+                  default: []
+          required: [status]
+      required: [response]
+  examples:
+    Exito:
+      summary: Resultado con publicaciones
+      value:
+        response:
+          data:
+            EdictosNormas:
+              - BoletinFecha: "2024-03-08"
+                BoletinNumero: "32032"
+                CadNro: "0"
+                PublicacionPedidoCantPub: 1
+                PublicacionPedidoConAnexos: "NO"
+                PublicacionPedidoEdictoDscOrigen: "MINISTERIO GOBIERNO, TRABAJO Y JUSTICIA"
+                PublicacionPedidoEdictoTEDesc: "DECRETOS"
+                PublicacionPedidoEdictoTEOrden: 2
+                PublicacionPedidoEdictoTETipo: "NORMA"
+                PublicacionPedidoEdictoTETitulo: "Decreto"
+                PublicacionPedidoEdictoTema: "TESTAPI080324"
+                PublicacionPedidoEdictoTextoEditado: "<p>TESTAPI080324</p>\r\n"
+                PublicacionPedidoId: "80324"
+                Publicacion_fecha_propuesta: "2024-03-08"
+                Publicacion_fecha_pub: "2024-03-08"
+                Ruta_Anexo_PDF: ""
+                Ruta_Boletin_PDF: "https://boetst.mendoza.gov.ar/default/public/publico/verpdf/32032"
+                Ruta_Pedido_PDF: "https://boe.mendoza.gov.ar/publico/pdf_pedido/e6b85f2e..."
+                SuplementoNumero: 0
+          status:
+            flag: "S"
+            messages: []
+    Token_Invalido:
+      summary: Token inválido
+      value:
+        response:
+          data: []
+          status:
+            flag: "N"
+            messages:
+              - id: "CHECKTOKEN_INVALID"
+                description: "Token inválido"
+    Filtros_Incompletos:
+      summary: Filtros incompletos
+      value:
+        response:
+          data:
+            EdictosNormas: []
+          status:
+            flag: "N"
+            messages:
+              - id: "Filtros_Incompletos"
+                description: ""
+    Fecha_Publicacion_Desde_Futura:
+      summary: Fecha de publicación futura
+      value:
+        response:
+          data:
+            EdictosNormas: []
+          status:
+            flag: "N"
+            messages:
+              - id: "Filtros_Fecha_Publicacion_Desde_Futura"
+                description: "La fecha de publicación desde no puede ser futura."

@@ -1,0 +1,160 @@
+openapi: 3.1.0
+info:
+  title: WS Consulta de Turnos Asignados (CDR)
+  version: "01.04"
+  description: |
+    Servicio para **consultar turnos vigentes** asignados a una persona en CDR.
+
+    Reglas (según documento WS-DGIC-PRIVADO-MTCDR-01.04):
+    - Tipo: REST
+    - Método soportado: **GET**
+    - Testing: `http://dicapprdb.mendoza.gov.ar:8080/servicioscdrtst/WebServCDR/WSMostrarTurn`
+    - Producción: **No habilitado** (no indicado en el documento).
+servers:
+  - url: http://dicapprdb.mendoza.gov.ar:8080/servicioscdrtst/WebServCDR
+    description: Testing (según PDF)
+tags:
+  - name: CDR
+paths:
+  /WSMostrarTurn:
+    get:
+      tags: [CDR]
+      summary: Lista turnos vigentes asignados
+      operationId: listarTurnosAsignados
+      parameters:
+        - $ref: '#/components/parameters/tipDocPers'
+        - $ref: '#/components/parameters/nroDocPers'
+        - $ref: '#/components/parameters/sexoPers'
+        - $ref: '#/components/parameters/codTurno'
+      responses:
+        "200":
+          description: Único HTTP documentado. `flag=1` éxito, `flag=9` sin datos/errores.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MostrarTurnResponse'
+              examples:
+                Exito_UnTurno:
+                  $ref: '#/components/examples/Exito_UnTurno'
+                Exito_VariosTurnos:
+                  $ref: '#/components/examples/Exito_VariosTurnos'
+                Error_SinTurnos:
+                  $ref: '#/components/examples/Error_SinTurnos'
+components:
+  parameters:
+    tipDocPers:
+      name: tipDocPers
+      in: query
+      required: true
+      schema:
+        type: integer
+        enum: [1,2,3,4,10,11]
+      description: "Tipo documento: 1:DNI, 2:LE, 3:LC, 4:CI, 10:CUIT, 11:CUIL."
+    nroDocPers:
+      name: nroDocPers
+      in: query
+      required: true
+      schema: { type: string, maxLength: 11 }
+    sexoPers:
+      name: sexoPers
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: ["M","F","X"]
+    codTurno:
+      name: codTurno
+      in: query
+      required: false
+      schema: { type: string, maxLength: 21 }
+  schemas:
+    TurnoAsignado:
+      type: object
+      properties:
+        codOrg: { type: string }
+        codCen: { type: integer }
+        denomCen: { type: string, maxLength: 60 }
+        nroTelCen: { type: string, maxLength: 11 }
+        nroDoc: { type: string, maxLength: 11 }
+        apellido: { type: string, maxLength: 30 }
+        nombre: { type: string, maxLength: 60 }
+        codTram: { type: integer }
+        dscTram: { type: string, maxLength: 40 }
+        fchTurn: { type: string, format: date }
+        prefTurn: { type: integer, description: "1: Día, 2: Tarde, 3: Noche" }
+        nroTurn: { type: integer }
+        horaTurn: { type: string, format: date-time }
+        sectorBoleta: { type: string }
+        nroBoleta: { type: string }
+        estadoAsistencia: { type: string, maxLength: 40 }
+        codTurno: { type: string, maxLength: 21 }
+      required: [codOrg, codCen, denomCen, nroDoc, apellido, nombre, codTram, dscTram, fchTurn, prefTurn, nroTurn]
+    MostrarTurnResponse:
+      type: object
+      properties:
+        flag:
+          type: integer
+          enum: [1, 9]
+        turnosAsignados:
+          type: array
+          items: { $ref: '#/components/schemas/TurnoAsignado' }
+        mensajes:
+          type: array
+          items:
+            type: object
+            properties:
+              codMsg: { type: integer }
+              textoMsg: { type: string }
+      required: [flag]
+  examples:
+    Exito_UnTurno:
+      summary: Un turno filtrado por codTurno
+      value:
+        flag: 1
+        turnosAsignados:
+          - apellido: "CHINURI"
+            codCen: 1
+            codOrg: "REGC"
+            codTram: 2
+            codTurno: "000001240320230100002"
+            denomCen: "CENTRO DOCUMENTACIÓN 1 PRUEBA"
+            dscTram: "DNI menores 18 años"
+            estadoAsistencia: "Confirmado"
+            fchTurn: "2023-03-24"
+            horaTurn: "0001-01-01T08:15:00"
+            nombre: "ENZO OSCAR"
+            nroBoleta: ""
+            nroDoc: "20385804475"
+            nroTelCen: "4491234"
+            nroTurn: 2
+            prefTurn: 1
+            sectorBoleta: "0"
+    Exito_VariosTurnos:
+      summary: Varios turnos sin codTurno
+      value:
+        flag: 1
+        turnosAsignados:
+          - apellido: "CHINURI"
+            codCen: 1
+            codOrg: "REGC"
+            codTram: 1
+            codTurno: "000001230320230100001"
+            denomCen: "CENTRO DOCUMENTACIÓN 1 PRUEBA"
+            dscTram: "DNI Nuevo Mayor y Cambio de LC o LE"
+            estadoAsistencia: "Confirmado"
+            fchTurn: "2023-03-23"
+            horaTurn: "0001-01-01T08:00:00"
+            nombre: "ENZO OSCAR"
+            nroBoleta: "167"
+            nroDoc: "20385804475"
+            nroTelCen: "4491234"
+            nroTurn: 1
+            prefTurn: 1
+            sectorBoleta: "1"
+    Error_SinTurnos:
+      summary: Sin turnos vigentes
+      value:
+        flag: 9
+        mensajes:
+          - codMsg: 4001
+            textoMsg: "ATENCIÓN: sin turnos vigentes !"

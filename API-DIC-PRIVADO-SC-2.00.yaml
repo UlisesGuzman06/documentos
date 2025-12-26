@@ -1,0 +1,117 @@
+openapi: 3.1.0
+info:
+  title: DIC — Servicio Ciudadano (SC)
+  version: "2.00"
+  description: |
+    Orquesta consultas de datos ciudadanos según **opción**.
+    Fuente: Catálogo API-DIC-PRIVADO-SC-2.00. REST **GET**.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/SERVICIOCIUDADANO
+    description: Testing (convención X-Road). Path específico no indicado.
+    variables:
+      nodoXroad: { default: xroad-test.mendoza.gov.ar }
+tags: [{ name: ServicioCiudadano }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "UUID v4 recomendado; admite prefijos/cadenas."
+    TipoDoc:
+      name: tipoDoc
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [DNI, PA, CUIL]
+    NroDoc:
+      name: nroDoc
+      in: query
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 11 }
+    Sexo:
+      name: sexo
+      in: query
+      required: false
+      schema: { type: string, minLength: 1, maxLength: 1, enum: [M, F, X] }
+    Opcion:
+      name: opcion
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [datos_personales, domicilio_documento, nro_tramite, fecha_fallecimiento]
+  schemas:
+    MsjErrorSC:
+      type: object
+      properties:
+        coderror: { type: integer }
+        msjerror: { type: string }
+      required: [coderror, msjerror]
+    ResponseSC:
+      type: object
+      properties:
+        response:
+          type: object
+          properties:
+            flag: { type: string, enum: ["SI","NO"] }
+            msjerrores:
+              oneOf:
+                - type: array
+                  items: { $ref: "#/components/schemas/MsjErrorSC" }
+                - type: object
+                  properties:
+                    coderror: { type: integer }
+                    error: { type: string }
+            respuesta:
+              oneOf:
+                - type: object
+                - type: array
+      required: [response]
+paths:
+  /NO_INDICADO_EN_DOCUMENTO:
+    get:
+      tags: [ServicioCiudadano]
+      summary: Consultar según opción
+      description: "Path no indicado en el documento oficial."
+      operationId: servicioCiudadano
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadIssue"
+        - $ref: "#/components/parameters/TipoDoc"
+        - $ref: "#/components/parameters/NroDoc"
+        - $ref: "#/components/parameters/Sexo"
+        - $ref: "#/components/parameters/Opcion"
+      responses:
+        "200":
+          description: Único HTTP indicado (éxito o error de aplicación).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ResponseSC" }
+              examples:
+                exito_datos_personales:
+                  value:
+                    response:
+                      flag: "SI"
+                      msjerrores: []
+                      respuesta:
+                        nroDoc: "31188227"
+                        nombres: "MARIO NICOLAS"
+                        apellidos: "VASSALLO"
+                        fecha_nacimiento: "1984-11-03"
+                        sexo: "M"
+                fracaso_campos_obligatorios:
+                  value:
+                    response:
+                      flag: "NO"
+                      msjerrores:
+                        coderror: 2
+                        error: "Los campos sexo y/o nroDoc son obligatorios o incorrectos"
+                      respuesta: []

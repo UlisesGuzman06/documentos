@@ -1,0 +1,109 @@
+openapi: 3.1.0
+info:
+  title: HUBCERTIFICADOS — ObtenerImagenPost
+  version: "1.00"
+  description: |
+    Ejecuta un certificado y devuelve **PNG Base64**.
+    Fuente: US-1309 *ObtenerImagenPost* (V.01.00).
+servers:
+  - url: https://{nodoXroad}
+    description: Base X-Road
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: HubCertificados
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-userid
+      in: header
+      required: false
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "Identificador único (UUID v4 recomendado). Admite prefijos: NombreApp-<uuid>."
+  schemas:
+    Parametro:
+      type: object
+      properties:
+        nombre: { type: string }
+        valor: { type: string }
+      required: [nombre, valor]
+    ObtenerImgRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        ticket: { type: string, description: "API Key" }
+        usuario: { type: string }
+        parametros:
+          type: array
+          items: { $ref: "#/components/schemas/Parametro" }
+        certificado: { type: integer }
+        issue: { type: string }
+      required: [ticket, usuario, certificado, issue]
+    ObtenerImgResponseOk:
+      type: object
+      properties:
+        respuestaOK: { type: boolean, enum: [true] }
+        msgErr: { type: string }
+        texto: { type: string, description: "data:image/png;base64,..." }
+      required: [respuestaOK, texto]
+    ObtenerImgResponseError:
+      type: object
+      properties:
+        texto: { type: string }
+        respuestaOK: { type: boolean, enum: [false] }
+        msgError: { type: string }
+      required: [respuestaOK, msgError]
+paths:
+  /mendoza/DIC/002/HUBCERTIFICADOS/ObtenerImagenPost_dev:
+    post:
+      tags: [HubCertificados]
+      summary: Obtener imagen PNG (TEST)
+      operationId: obtenerImagenPostDev
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadUserId"
+        - $ref: "#/components/parameters/XRoadIssue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ObtenerImgRequest" }
+            examples:
+              ejemplo:
+                value:
+                  ticket: "afcf4a74eadd74a03be4fae671f72726341201180"
+                  usuario: "app001"
+                  parametros: [{ nombre: "dni", valor: "46523478" }]
+                  certificado: 4
+                  issue: "issuex"
+      responses:
+        "200":
+          description: Único HTTP documentado.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ObtenerImgResponseOk"
+                  - $ref: "#/components/schemas/ObtenerImgResponseError"
+              examples:
+                ok:
+                  value:
+                    respuestaOK: true
+                    msgErr: ""
+                    texto: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+                error:
+                  value:
+                    texto: ""
+                    respuestaOK: false
+                    msgError: "texto descriptivo del error"

@@ -1,0 +1,147 @@
+openapi: 3.1.0
+info:
+  title: Traza / Gestor de Documentos DIC (TDC)
+  version: "1.0.1"
+  description: |
+    Operaciones de alta/actualización/eliminación/consulta de documentos en repositorios.
+    Documento: API-DIC-PUBLICO-TDC-1.0.1
+
+    Reglas de operación (estricto):
+    - Tipo: REST
+    - Método: **POST**
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Testing (X-Road). Path específico `gestordocumentos.tst`.
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GestorDocumentos
+paths:
+  /gestordocumentos.tst:
+    post:
+      tags: [GestorDocumentos]
+      summary: Operaciones de gestor documental (INS/UPD/DLT/DSP)
+      operationId: gestorDocumentos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Request'
+            examples:
+              recuperar:
+                value:
+                  request:
+                    IdClaseDocumento: 1
+                    IdCiudadano: "400000000"
+                    IdOperacion: "DSP"
+                    OrigenSistema: "Tickets"
+                    FechaVencimiento: "5029-01-31"
+                    RequiereAuditoria: "false"
+                    DataIn:
+                      acpsdmdocumenttocrud:
+                        SisCod: "TICKETS"
+                        DocRepCod: "TICKETS"
+                        DocGUID: "fa296e36-700a-433e-9cc9-681dcd35f51c"
+                        DocVerNro: 3
+                        UsuCod: "KRODRIGUEZ"
+                        Modo: "DSP"
+                        file: ""
+                        DocVerArcNom: "Prueba NewFinal 3"
+                        DocVerTip: "T"
+                        DocVerDsc: "Txt PruebaNewFinal 3"
+                        DocVerNot: "1.3"
+                        DocVerCnt: "Test 1.3 ACP"
+                      params: ""
+      responses:
+        "200":
+          description: Único HTTP documentado. `status.Flag=S/N` y `Messages`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  docId:
+                    type: object
+                    properties:
+                      Id: { type: string }
+                  dataDoc:
+                    type: object
+                    properties:
+                      DocGUID: { type: string }
+                      DocVerCnt: { type: string }
+                      DocVerNom: { type: string }
+                      DocVerNro: { type: integer }
+                      DocVerTip: { type: string }
+                  status:
+                    type: object
+                    properties:
+                      Flag: { type: string, enum: ["S","N"] }
+                      Messages:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            Description: { type: string }
+                            Id: { type: string }
+                            Type: { type: integer, enum: [0,1,2,3] }
+                required: [status]
+              examples:
+                exito:
+                  value:
+                    docId: { Id: "18" }
+                    status:
+                      Flag: "S"
+                      Messages:
+                        - Description: "Se ha guardado la versión del documento correspondiente."
+                          Id: "CreateDocumentVrs"
+                          Type: 0
+                error_operacion:
+                  value:
+                    status:
+                      Flag: "N"
+                      Messages:
+                        - Description: "Debe de indicar el tipo de Operación (INS/UDP/DLT/DSP)."
+                          Id: "EmptyIdOperacion"
+                          Type: 1
+components:
+  schemas:
+    Request:
+      type: object
+      properties:
+        request:
+          type: object
+          properties:
+            IdClaseDocumento: { type: integer, maximum: 9999 }
+            IdCiudadano: { type: string, maxLength: 30 }
+            IdOperacion: { type: string, maxLength: 3 }
+            OrigenSistema: { type: string, maxLength: 30 }
+            FechaVencimiento: { type: string, format: date }
+            RequiereAuditoria: { type: string, enum: ["true","false"] }
+            DataIn:
+              type: object
+              properties:
+                acpsdmdocumenttocrud:
+                  type: object
+                  properties:
+                    SisCod: { type: string, maxLength: 10 }
+                    DocRepCod: { type: string, maxLength: 40 }
+                    DocGUID: { type: string, maxLength: 36 }
+                    DocVerNro: { type: integer, maximum: 9999 }
+                    UsuCod: { type: string, maxLength: 30 }
+                    Modo:
+                      type: string
+                      enum: ["INS","UPD","DLT","DSP"]
+                    file: { type: string }
+                    DocVerArcNom: { type: string, maxLength: 256 }
+                    DocVerTip: { type: string, maxLength: 1 }
+                    DocVerDsc: { type: string, maxLength: 255 }
+                    DocVerNot: { type: string, maxLength: 255 }
+                    DocVerCnt: { type: string }
+                  required: [SisCod, DocRepCod, UsuCod, Modo]
+                params:
+                  type: string
+                  maxLength: 1000
+          required: [IdClaseDocumento, IdCiudadano, IdOperacion, OrigenSistema, FechaVencimiento, RequiereAuditoria, DataIn]
+      required: [request]

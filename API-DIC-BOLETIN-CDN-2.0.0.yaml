@@ -1,0 +1,199 @@
+openapi: 3.1.0
+info:
+  title: Consulta de Nomencladores (Boletín Oficial)
+  version: "2.0.0"
+  description: |
+    Servicio para **consultar una lista de nomencladores** de Boletín Oficial.
+
+    Reglas de operación (según PDF oficial):
+    - Tipo servicio: REST
+    - Método: **POST**
+    - Observaciones: Servicio disponible en **EDI Mendoza**.
+    - Restricciones:
+      - Autorización del subsistema productor `capaserviciosgx`.
+      - Encabezados X-Road:
+        - `X-Road-Client` (**obligatorio**)
+        - `X-Road-UserId`
+        - `X-Road-Issue` (**obligatorio**, UUID v4 recomendado, admite cadenas `App2-App1-<uuid>`).
+      - **Requiere token**: usar `Authorization: Bearer <token>`.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/GPE/028/BOE
+    description: Ambiente Testing (X-Road)
+    variables:
+      nodoXroad:
+        description: Nodo X-Road del entorno.
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: BoletínOficial
+paths:
+  /ConsultaNomencladoresTst:
+    post:
+      tags: [BoletínOficial]
+      summary: Consulta la lista de nomencladores
+      description: |
+        Devuelve una colección de elementos **SDTDatosNomenclador** según el `NomencladorTipo` indicado.
+      operationId: consultarNomencladores
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestNomencladores'
+            examples:
+              Ejemplo_Edictos:
+                value:
+                  request:
+                    payload:
+                      NomencladorTipo: "E"
+      responses:
+        "200":
+          description: Respuesta de éxito o de error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseNomencladores'
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_Tipo_Incorrecto:
+                  $ref: '#/components/examples/Error_Tipo_Incorrecto'
+                Error_Tipo_Incompleto:
+                  $ref: '#/components/examples/Error_Tipo_Incompleto'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+      description: Cliente autorizado para su consumo (X-Road).
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+      description: Identificación del usuario que inicia la solicitud.
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: |
+        Identificador único de la transacción. **UUID v4** recomendado.
+        Se permiten prefijos/cadenas:
+        - `NombreApp-<uuid>`
+        - `App2-App1-<uuid>`
+  schemas:
+    RequestNomencladores:
+      type: object
+      properties:
+        request:
+          type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                NomencladorTipo:
+                  type: string
+                  maxLength: 1
+                  description: |
+                    Tipo de nomencladores a consultar.
+                    Valores: **E** (Edictos), **N** (Normas), **O** (Orígenes).
+                  enum: ["E","N","O"]
+              required: [NomencladorTipo]
+          required: [payload]
+      required: [request]
+    ResponseNomencladores:
+      type: object
+      properties:
+        response:
+          type: object
+          properties:
+            status:
+              $ref: '#/components/schemas/Status'
+            data:
+              type: array
+              items:
+                type: object
+                properties:
+                  SDTDatosNomenclador:
+                    type: object
+                    properties:
+                      NomencladorTipo:
+                        type: string
+                      Nomencladores:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Nomenclador'
+                    required: [NomencladorTipo, Nomencladores]
+              description: Lista de nomencladores (cuando `status.flag` vacío).
+          required: [status]
+      required: [response]
+    Status:
+      type: object
+      properties:
+        messages:
+          type: array
+          description: Mensajes devueltos por el servicio.
+          items:
+            type: object
+            properties:
+              Description: { type: string }
+              Id: { type: string }
+            required: [Description, Id]
+        flag:
+          type: string
+          description: En error toma valor `'N'`; en éxito suele ser vacío.
+          enum: ["", "N"]
+      required: [messages, flag]
+    Nomenclador:
+      type: object
+      properties:
+        NomencladorCodigo: { type: string }
+        NomencladorNombre: { type: string }
+      required: [NomencladorCodigo, NomencladorNombre]
+  examples:
+    Exito:
+      summary: Caso de éxito (Edictos)
+      value:
+        response:
+          status:
+            messages: []
+            flag: ""
+          data:
+            - SDTDatosNomenclador:
+                NomencladorTipo: "EDICTOS"
+                Nomencladores:
+                  - NomencladorCodigo: "23"
+                    NomencladorNombre: "AUDIENCIAS PUBLICAS"
+                  - NomencladorCodigo: "20"
+                    NomencladorNombre: "AVISO LEY 11.867"
+    Error_Tipo_Incorrecto:
+      summary: Error - NomencladorTipo incorrecto
+      value:
+        response:
+          status:
+            messages:
+              - Description: "El tipo de nomenclador a consultar ingresado no existe."
+                Id: "TipoNomenclador_Invalido"
+            flag: "N"
+    Error_Tipo_Incompleto:
+      summary: Error - NomencladorTipo no ingresado
+      value:
+        response:
+          status:
+            messages:
+              - Description: "No se ingresó NomencladorTipo."
+                Id: "Parametros_Incompletos"
+            flag: "N"

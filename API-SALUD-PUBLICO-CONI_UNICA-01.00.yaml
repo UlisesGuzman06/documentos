@@ -1,0 +1,98 @@
+openapi: 3.1.0
+info:
+  title: WS Consulta Certificados de Aptitud CONI (UNICA)
+  version: "01.00"
+  description: |
+    Servicio para **consultar un expediente vigente** para un documento determinado.
+
+    Reglas (según documento WS-SALUD-PUBLICO-CONI_UNICA-01.00):
+    - Tipo: REST
+    - Método soportado: **POST**
+    - Testing (ruta textual del documento): `http://dicapprda.mendoza.gov.ar:8080/serviceCONItst/rest/wsrCONIunique`
+servers:
+  - url: http://dicapprda.mendoza.gov.ar:8080/serviceCONItst/rest
+    description: Testing (según PDF)
+tags:
+  - name: CONI
+paths:
+  /wsrCONIunique:
+    post:
+      tags: [CONI]
+      summary: Consulta única CONI
+      operationId: coniUnique
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CONIUniqueRequest'
+            examples:
+              Ejemplo:
+                value:
+                  Documento: "31288225"
+                  Expte: "20052"
+                  Usuario: "GIRI"
+      responses:
+        "200":
+          description: Único HTTP documentado (flag SI/NO en payload).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CONIUnique'
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Falta_Fecha_Retiro:
+                  $ref: '#/components/examples/Falta_Fecha_Retiro'
+components:
+  schemas:
+    CONIUniqueRequest:
+      type: object
+      properties:
+        Documento: { type: string, maxLength: 10 }
+        Expte: { type: string, maxLength: 10 }
+        Usuario: { type: string, maxLength: 20 }
+      required: [Documento, Expte]
+    CONIUnique:
+      type: object
+      properties:
+        apellidomaterno: { type: string }
+        apellidopaterno: { type: string }
+        coddestino: { type: string }
+        codresultado: { type: string }
+        descrtipodoc: { type: string }
+        destino: { type: string }
+        expediente: { type: string }
+        fechaturno: { type: string }
+        flag: { type: string, enum: ["SI","NO"] }
+        nacimiento: { type: string }
+        nombres: { type: string }
+        nrodocumento: { type: string }
+        resultado: { type: string }
+        sexo: { type: string }
+        status: { type: string }
+        tipodocumento: { type: string }
+  examples:
+    Exito:
+      summary: Resultado con datos
+      value:
+        apellidomaterno: ""
+        apellidopaterno: "LEONARDI"
+        coddestino: "0"
+        codresultado: "2"
+        descrtipodoc: "Documento Nacional de Identidad"
+        destino: "SIN INFORMAR"
+        expediente: "20052"
+        fechaturno: "01/11/2022"
+        flag: "NO"
+        nacimiento: "18/02/1985"
+        nombres: "MARIA SILVANA"
+        nrodocumento: "31288225"
+        resultado: "APTO CON OBSERVACIONES"
+        sexo: "F"
+        status: "ATENCIÓN: falta informar fecha RETIRO del certificado !"
+        tipodocumento: "96"
+    Falta_Fecha_Retiro:
+      summary: Mensaje de atención
+      value:
+        status: "ATENCIÓN: falta informar fecha RETIRO del certificado !"

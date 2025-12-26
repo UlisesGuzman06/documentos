@@ -1,0 +1,125 @@
+openapi: 3.1.0
+info:
+  title: DIC — Generador de URL de Formulario (URLFORM)
+  version: "1.0.2"
+  description: |
+    Servicio para **generar** la URL firmada/encriptada de un formulario MxM.
+    Documento: API-DIC-PUBLICO-URLFORM-1.0.2 (no indica URL/path HTTP exacto).
+servers:
+  - url: https://{nodoXroad}
+    description: Servidor no indicado en el documento oficial.
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags: [{ name: DIC }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "Identificador único (UUID v4 recomendado)."
+  schemas:
+    User:
+      type: object
+      properties:
+        name: { type: string, maxLength: 40 }
+        lastname: { type: string, maxLength: 40 }
+        type_document: { type: string, enum: ["DNI","CUIL","PASS"] }
+        document: { type: string, maxLength: 20, examples: ["44444444","20-44444444-4"] }
+        level: { type: integer, maximum: 9 }
+      required: [name, lastname, type_document, document, level]
+    Owner:
+      type: object
+      properties:
+        type_document: { type: string, enum: ["DNI","CUIL","PASS","CUIT"] }
+        document: { type: string, maxLength: 20, examples: ["27-39377857-9"] }
+        relationship: { type: string, enum: ["SELF","CHILD","LEGAL_PERSON"] }
+      required: [type_document, document, relationship]
+    DataForm:
+      type: object
+      properties:
+        FormularioCodigo: { type: string, maxLength: 40, example: "COD_CONTRAVENCIONAL_LEY_9099" }
+      required: [FormularioCodigo]
+    Parmin:
+      type: object
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        owner: { $ref: "#/components/schemas/Owner" }
+        data: { $ref: "#/components/schemas/DataForm" }
+      required: [user, owner, data]
+    Mensaje:
+      type: object
+      properties:
+        Description: { type: string, maxLength: 256 }
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+      required: [Description, Id, Type]
+    Status:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["S","N"] }
+        Messages:
+          type: array
+          items: { $ref: "#/components/schemas/Mensaje" }
+      required: [Flag]
+    UrlFormResponse:
+      type: object
+      properties:
+        response: { type: string, maxLength: 1024, description: "URL generada/encriptada" }
+        status: { $ref: "#/components/schemas/Status" }
+paths:
+  /NO_INDICADO_EN_DOCUMENTO:
+    post:
+      tags: [DIC]
+      summary: Generar URL de formulario
+      description: "El path HTTP **no está indicado** en el documento oficial."
+      operationId: generarUrlForm
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadIssue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                parmin: { $ref: "#/components/schemas/Parmin" }
+              required: [parmin]
+            examples:
+              ejemplo:
+                value:
+                  parmin:
+                    user: { name: "Kevin", lastname: "Rodriguez", type_document: "DNI", document: "44444444", level: 1 }
+                    owner: { type_document: "CUIT", document: "30-37518488-0", relationship: "LEGAL_PERSON" }
+                    data: { FormularioCodigo: "COD_CONTRAVENCIONAL_LEY_9099" }
+      responses:
+        "200":
+          description: Único HTTP documentado (éxito o error de aplicación).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UrlFormResponse" }
+              examples:
+                exito:
+                  value:
+                    response: "http://dicaptst1.mendoza.gov.ar:8080/ticketsformtst/com.tickets.responderformularioif?..."
+                    status: { Flag: "S" }
+                error_EmptyDataUser:
+                  value:
+                    response: ""
+                    status:
+                      Flag: "N"
+                      Messages: [{ Description: "Error: Debe de ingresar todos los datos correspondientes al Usuario.", Id: "EmptyDataUser", Type: 1 }]
+                error_WrongDocType:
+                  value:
+                    response: ""
+                    status:
+                      Flag: "N"
+                      Messages: [{ Description: "Error: El tipo de documento debe ser CUIT", Id: "EmptyWrongData", Type: 1 }]

@@ -1,0 +1,161 @@
+openapi: 3.1.0
+info:
+  title: Creación de Expediente GDE (DIC)
+  version: "1.0.1"
+  description: |
+    Servicio para **crear un expediente** en GDE.
+
+    Reglas (según documento API-DIC-PUBLICO-CRE-1.0.1):
+    - Tipo: REST
+    - Método: **POST**
+    - Testing: `https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx/GDECreacionExpedienteTST`
+    - Producción: Aún no disponible.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Base X-Road (Testing)
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GDE
+paths:
+  /GDECreacionExpedienteTST:
+    post:
+      tags: [GDE]
+      summary: Crea un expediente GDE
+      operationId: crearExpedienteGDE
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestCreacionExpediente'
+            examples:
+              Interno:
+                value:
+                  RequestCreacionExpediente:
+                    Tipo: "I"
+                    TipoIniciador: ""
+                    UsuarioGDE: "GUILLERMOGARCIA"
+                    ExpedienteDescripcion: "Expediente de prueba Interno REST"
+                    ExpedienteMotivo: "motivo de prueba"
+                    ExpedienteMotivoExterno: ""
+                    ExpedienteObservaciones: "observacion de prueba"
+                    TrataCodigo: "DIC00003"
+      responses:
+        "200":
+          description: Único HTTP documentado. `Flag=C` éxito, `Flag=E` error.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  CodigoExpedienteElectronico: { type: string, maxLength: 200 }
+                  SDTResultado: { $ref: '#/components/schemas/SDTResultado' }
+                required: [SDTResultado]
+              examples:
+                Error_TipoExpediente:
+                  $ref: '#/components/examples/Error_TipoExpediente'
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "UUID v4 recomendado; admite prefijos App-<uuid>, App2-App1-<uuid>."
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag]
+    DatosEmpresa:
+      type: object
+      properties:
+        RazonSocial: { type: string }
+        CUIT: { type: string, maxLength: 11 }
+        ProvinciaNombre: { type: string }
+        DepartamentoNombre: { type: string }
+        LocalidadNombre: { type: string }
+        Domicilio: { type: string }
+        EdificioPiso: { type: string }
+        EdificioDepartamento: { type: string }
+        Email: { type: string, maxLength: 100 }
+        Telefono: { type: string }
+        CodigoPostal: { type: string }
+    DatosPersona:
+      type: object
+      properties:
+        Apellido1: { type: string }
+        Apellido2: { type: string }
+        Apellido3: { type: string }
+        Nombre1: { type: string }
+        Nombre2: { type: string }
+        Nombre3: { type: string }
+        CUIL: { type: string, maxLength: 11 }
+        DocumentoTipo: { type: string, maxLength: 20 }
+        DocumentoNumero: { type: string, maxLength: 9 }
+        Sexo: { type: string }
+        ProvinciaNombre: { type: string }
+        DepartamentoNombre: { type: string }
+        LocalidadNombre: { type: string }
+        Domicilio: { type: string }
+        EdificioPiso: { type: string }
+        EdificioDepartamento: { type: string }
+        Email: { type: string, maxLength: 100 }
+        Telefono: { type: string }
+        CodigoPostal: { type: string }
+    RequestCreacionExpediente:
+      type: object
+      properties:
+        RequestCreacionExpediente:
+          type: object
+          properties:
+            Tipo: { type: string, maxLength: 1, enum: ["I","E"] }
+            TipoIniciador: { type: string, maxLength: 1, enum: ["","P","E"] }
+            UsuarioGDE: { type: string, maxLength: 30 }
+            ExpedienteDescripcion: { type: string }
+            ExpedienteMotivo: { type: string }
+            ExpedienteMotivoExterno: { type: string }
+            ExpedienteObservaciones: { type: string }
+            TrataCodigo: { type: string }
+            DatosEmpresa: { $ref: '#/components/schemas/DatosEmpresa' }
+            DatosPersona: { $ref: '#/components/schemas/DatosPersona' }
+          required: [Tipo, UsuarioGDE, ExpedienteDescripcion, ExpedienteMotivo, TrataCodigo]
+      required: [RequestCreacionExpediente]
+  examples:
+    Error_TipoExpediente:
+      summary: Falta Tipo de expediente
+      value:
+        CodigoExpedienteElectronico: ""
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe indicar si el TIPO del expediente electrónico a crear Interno (I) o Externo (E)."
+              Id: "TipoExpediente_NoValido"
+              Type: 1

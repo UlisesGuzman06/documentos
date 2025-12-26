@@ -1,0 +1,146 @@
+openapi: 3.1.0
+info:
+  title: Consulta Sectores (DIC)
+  version: "1.0.2"
+  description: |
+    Servicio para **consultar sectores** por repartición y filtros.
+
+    Reglas (según documento oficial):
+    - Tipo: REST
+    - Método: **POST**
+    - Ambiente test: `https://{nodoXroad}/r1/mendoza.gov.ar/serviciosgdetst/api/v1/nomencladores/consultasector`
+servers:
+  - url: https://{nodoXroad}/r1/mendoza.gov.ar/serviciosgdetst
+    description: Test (ruta base textual del documento)
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GDE
+paths:
+  /api/v1/nomencladores/consultasector:
+    post:
+      tags: [GDE]
+      summary: Consulta sectores
+      operationId: consultarSectores
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestSector'
+            examples:
+              Ejemplo:
+                value:
+                  filas: 10
+                  pagina: 1
+                  IrAUltimaPagina: false
+                  re_CODIGO_REPARTICION: "AC#SCJ#PJUDICIAL"
+                  si_CODIGO_SECTOR_INTERNO: ""
+                  si_NOMBRE_SECTOR_INTERNO: ""
+      responses:
+        "200":
+          description: Éxito o error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  SDTSectoresInternos: { $ref: '#/components/schemas/SDTSectoresInternos' }
+                  SDTResultado: { $ref: '#/components/schemas/SDTResultado' }
+                required: [SDTResultado]
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Filtros_Vacios_CodigoReparticion:
+                  $ref: '#/components/examples/Filtros_Vacios_CodigoReparticion'
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+  schemas:
+    RequestSector:
+      type: object
+      properties:
+        filas: { type: integer }
+        pagina: { type: integer }
+        IrAUltimaPagina: { type: boolean }
+        re_CODIGO_REPARTICION: { type: string, maxLength: 100, description: "Obligatorio. Usar `%23` por `#` si aplica." }
+        si_CODIGO_SECTOR_INTERNO: { type: string, maxLength: 100 }
+        si_NOMBRE_SECTOR_INTERNO: { type: string, maxLength: 120 }
+      required: [filas, re_CODIGO_REPARTICION]
+    SDTSectoresInternos:
+      type: object
+      properties:
+        CODIGO_REPARTICION: { type: string, maxLength: 100 }
+        NOMBRE_REPARTICION: { type: string, maxLength: 120 }
+        Sectores:
+          type: array
+          items:
+            type: object
+            properties:
+              CODIGO_SECTOR_INTERNO: { type: string, maxLength: 100 }
+              NOMBRE_SECTOR_INTERNO: { type: string, maxLength: 120 }
+              TELEFONO: { type: string, maxLength: 20 }
+              EMAIL: { type: string, maxLength: 100 }
+              ADDRESS: { type: string, maxLength: 1024 }
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag, Messages]
+  examples:
+    Exito:
+      summary: Sectores encontrados
+      value:
+        SDTResultado:
+          Flag: "C"
+          Messages:
+            - Description: "Se ha/n encontrado 1 sectores."
+              Id: "Sector_Encontrado"
+              Type: 0
+        SDTSectoresInternos:
+          CODIGO_REPARTICION: "AC#SCJ#PJUDICIAL"
+          NOMBRE_REPARTICION: "Asuntos Carcelarios"
+          Sectores:
+            - ADDRESS: "Av. España 480, 2A. SECCION, CAPITAL - Piso: 2SS - Sector: N - 16"
+              CODIGO_SECTOR_INTERNO: "PVD"
+              EMAIL: ""
+              NOMBRE_SECTOR_INTERNO: "Privada"
+              TELEFONO: ""
+    Filtros_Vacios_CodigoReparticion:
+      summary: Falta código de repartición
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe indicar la Repartición de los sectores a consultar."
+              Id: "Filtros_Vacios_CodigoReparticion"
+              Type: 1

@@ -1,0 +1,143 @@
+openapi: 3.1.0
+info:
+  title: Consulta Repartición (DIC)
+  version: "1.0.2"
+  description: |
+    Servicio para **consultar reparticiones** con filtros y paginado.
+
+    Reglas (según documento oficial):
+    - Tipo: REST
+    - Método: **POST**
+    - Ambiente test: `https://{nodoXroad}/r1/mendoza./DIC/002/serviciosgdeRESTtst/api/nomencladores/consultareparticion`
+servers:
+  - url: https://{nodoXroad}/r1/mendoza./DIC/002/serviciosgdeRESTtst
+    description: Test (ruta base textual del documento; puede contener errores tipográficos en el PDF)
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GDE
+paths:
+  /api/nomencladores/consultareparticion:
+    post:
+      tags: [GDE]
+      summary: Consulta reparticiones
+      operationId: consultarReparticiones
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestReparticion'
+            examples:
+              Ejemplo:
+                value:
+                  filas: 10
+                  pagina: 1
+                  IrAUltimaPagina: false
+                  re_CODIGO_REPARTICION: ""
+                  re_NOMBRE_REPARTICION: "PRESIDEN"
+      responses:
+        "200":
+          description: Éxito o error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  SDTReparticiones:
+                    type: array
+                    items: { $ref: '#/components/schemas/Reparticion' }
+                  SDTResultado: { $ref: '#/components/schemas/SDTResultado' }
+                required: [SDTResultado]
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Filtros_Vacios_Filas:
+                  $ref: '#/components/examples/Filtros_Vacios_Filas'
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: |
+        Identificador único de la transacción. **UUID v4** recomendado.
+  schemas:
+    RequestReparticion:
+      type: object
+      properties:
+        filas: { type: integer, maximum: 100 }
+        pagina: { type: integer }
+        IrAUltimaPagina: { type: boolean }
+        re_CODIGO_REPARTICION: { type: string, maxLength: 100, description: "Usar `%23` por `#` si aplica." }
+        re_NOMBRE_REPARTICION: { type: string, maxLength: 120 }
+      required: [filas]
+    Reparticion:
+      type: object
+      properties:
+        CODIGO_REPARTICION: { type: string, maxLength: 100 }
+        NOMBRE_REPARTICION: { type: string, maxLength: 120 }
+        TELEFONO: { type: string, maxLength: 20 }
+        EMAIL: { type: string, maxLength: 100 }
+        ADDRESS: { type: string, maxLength: 1024 }
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag, Messages]
+  examples:
+    Exito:
+      summary: Reparticiones encontradas
+      value:
+        SDTReparticiones:
+          - ADDRESS: "Av. España 480, 2A. SECCION, CAPITAL - Piso: 4 - Sector: 3"
+            CODIGO_REPARTICION: "#PRESID#SCJ#PJUDICIAL"
+            EMAIL: ""
+            NOMBRE_REPARTICION: "Presidencia"
+            TELEFONO: ""
+          - ADDRESS: "Avda. España 480, 1A. SECCION, CAPITAL - Piso: 4"
+            CODIGO_REPARTICION: "PRES#SCJ"
+            EMAIL: ""
+            NOMBRE_REPARTICION: "Presidencia"
+            TELEFONO: ""
+        SDTResultado:
+          Flag: "C"
+          Messages:
+            - Description: "Se ha/n encontrado 2 reparticiones."
+              Id: "Reparticion_Encontrada"
+              Type: 0
+    Filtros_Vacios_Filas:
+      summary: Falta 'filas'
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe completar la cantidad máxima de reparticiones por página a consultar."
+              Id: "Filtros_Vacios_Filas"
+              Type: 1

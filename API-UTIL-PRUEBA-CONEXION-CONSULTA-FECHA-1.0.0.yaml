@@ -1,0 +1,35 @@
+openapi: 3.1.0
+info:
+  title: Prueba de Conexión — Consulta Fecha
+  version: "1.0.0"
+  description: |
+    Devuelve fecha y hora del servidor (healthcheck). Documento: Prueba de conexion - Consulta Fecha.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/util
+    description: Testing (ruta utilitaria según documento).
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: Healthcheck
+paths:
+  /consultaFecha:
+    get:
+      tags: [Healthcheck]
+      summary: Fecha y hora del servidor
+      operationId: consultaFecha
+      responses:
+        "200":
+          description: Único HTTP documentado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fecha: { type: string }
+                  zonaHoraria: { type: string }
+              examples:
+                ejemplo:
+                  value:
+                    fecha: "2025-11-03T10:15:00-03:00"
+                    zonaHoraria: "America/Argentina/Mendoza"

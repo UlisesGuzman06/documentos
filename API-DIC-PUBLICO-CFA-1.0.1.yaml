@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: DIC — Consulta Fallecidos (CFA)
+  version: "1.0.1"
+  description: |
+    Consulta si una persona está registrada como **fallecida** (RENAPER/Registro Civil).
+    Fuente: API-DIC-PUBLICO-CFA-1.0.1. REST **POST**.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/SERVICIOCIUDADANO
+    description: Testing (convención X-Road). Path específico no indicado.
+    variables:
+      nodoXroad: { default: xroad-test.mendoza.gov.ar }
+  - url: https://{nodoXroad}/mendoza/DIC/002/SERVICIOCIUDADANO/fallecido
+    description: Producción indicado en el documento.
+    variables:
+      nodoXroad: { default: xroad.mendoza.gov.ar }
+tags: [{ name: ServicioCiudadano }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "UUID v4 recomendado; admite prefijos/cadenas."
+  schemas:
+    CFARequest:
+      type: object
+      properties:
+        request:
+          type: object
+          properties:
+            nrodoc: { type: string, minLength: 1, maxLength: 8 }
+            sexo: { type: string, minLength: 1, maxLength: 1, enum: ["M","F"] }
+          required: [nrodoc, sexo]
+      required: [request]
+    CFAResponse:
+      type: object
+      properties:
+        response:
+          type: object
+          properties:
+            Flag: { type: string, enum: ["SI","NO"] }
+            Mensaje: { type: string }
+            Resultado: { type: string }
+          required: [Flag, Mensaje, Resultado]
+      required: [response]
+paths:
+  /fallecido:
+    post:
+      tags: [ServicioCiudadano]
+      summary: Consultar fallecimiento
+      operationId: consultarFallecido
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadIssue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CFARequest" }
+            examples:
+              ejemplo:
+                value:
+                  request: { nrodoc: "5037445", sexo: "F" }
+      responses:
+        "200":
+          description: Único HTTP indicado (éxito o error de aplicación).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CFAResponse" }
+              examples:
+                exito_fallecida:
+                  value: { response: { Flag: "SI", Mensaje: "", Resultado: "SI" } }
+                exito_no_fallecida:
+                  value: { response: { Flag: "SI", Mensaje: "", Resultado: "NO" } }
+                fracaso_no_encontrada:
+                  value: { response: { Flag: "NO", Mensaje: "PERSONA NO ENCONTRADA", Resultado: "" } }
+                fracaso_doc_invalido:
+                  value: { response: { Flag: "NO", Mensaje: "NUMERO DOCUMENTO INVALIDO", Resultado: "" } }

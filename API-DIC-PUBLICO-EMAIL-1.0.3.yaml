@@ -1,0 +1,238 @@
+openapi: 3.1.0
+info:
+  title: Encolado de Emails (DIC)
+  version: "1.0.3"
+  description: |
+    Servicio para **encolar** emails. Devuelve `status.Flag` igual a `"1"` en caso de encolado exitoso;
+    en fracaso devuelve `status.Flag` `"0"` o `"N"` con `Messages`.
+
+    Reglas (según PDF oficial):
+    - Tipo: REST
+    - Método: **POST**
+    - Ambiente Producción: `{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx/envio`
+    - Headers requeridos: `X-Road-Client`, `X-Road-Issue` (**UUID v4** recomendado; admite cadenas `App2-App1-<uuid>`).
+
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Nodo X-Road (Testing por defecto).
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+
+tags:
+  - name: Emails
+
+paths:
+  /envio:
+    post:
+      tags: [Emails]
+      summary: Encola correos electrónicos
+      operationId: encolarEmails
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadIssue'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParminRequest'
+            examples:
+              Ejemplo:
+                value:
+                  parmin:
+                    Queue:
+                      SisCod: "TICKETS"
+                      ColaId: "TICKETS"
+                      VerificaEmails: "N"
+                      PrioridadEnvio: "I"
+                    EmailMessages:
+                      - Para:
+                          - Nombre: "Kevin Rodriguez"
+                            Direccion: "krodriguez@acpsistemas.com.ar"
+                            UsuCod: "krodriguez"
+                        CC:
+                          - Nombre: ""
+                            Direccion: ""
+                            UsuCod: ""
+                        BCC:
+                          - Nombre: ""
+                            Direccion: ""
+                            UsuCod: ""
+                        Asunto: "Prueba Test V.1.0.1"
+                        Texto: "Envio de prueba mediante el nuevo servicio"
+                        HTMLBase64: ""
+      responses:
+        "200":
+          description: Éxito o error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StatusOK'
+                  - $ref: '#/components/schemas/StatusError'
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_Services:
+                  $ref: '#/components/examples/Error_Services'
+                Error_ColaInexistente:
+                  $ref: '#/components/examples/Error_ColaInexistente'
+                Warning_DestinatarioVacio:
+                  $ref: '#/components/examples/Warning_DestinatarioVacio'
+
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Cliente autorizado (X-Road).
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema:
+        type: string
+      description: |
+        Identificador único de la transacción. **UUID v4** recomendado.
+        Se permiten cadenas con prefijos de aplicaciones.
+  schemas:
+    ParminRequest:
+      type: object
+      properties:
+        parmin:
+          type: object
+          properties:
+            Queue:
+              type: object
+              properties:
+                SisCod:
+                  type: string
+                ColaId:
+                  type: string
+                VerificaEmails:
+                  type: string
+                  description: "D (inmediata), V (rápida), N (normal)"
+                  enum: ["D","V","N"]
+                PrioridadEnvio:
+                  type: string
+                  description: "D (diaria), S (semanal), I (inmediata)"
+                  enum: ["D","S","I"]
+              required: [SisCod, ColaId, VerificaEmails, PrioridadEnvio]
+            EmailMessages:
+              type: array
+              items:
+                type: object
+                properties:
+                  Para:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Nombre:
+                          type: string
+                          maxLength: 20
+                        Direccion:
+                          type: string
+                          maxLength: 144
+                        UsuCod:
+                          type: string
+                          maxLength: 20
+                      required: [Nombre, Direccion]
+                  CC:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Nombre: { type: string, maxLength: 20 }
+                        Direccion: { type: string, maxLength: 144 }
+                        UsuCod: { type: string, maxLength: 20 }
+                  BCC:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Nombre: { type: string, maxLength: 255 }
+                        Direccion: { type: string, maxLength: 255 }
+                        UsuCod: { type: string, maxLength: 30 }
+                  Asunto:
+                    type: string
+                    maxLength: 2014
+                  Texto:
+                    type: string
+                    maxLength: 65536
+                  HTMLBase64:
+                    type: string
+                    maxLength: 131072
+                required: [Para, Asunto]
+          required: [Queue, EmailMessages]
+      required: [parmin]
+    StatusOK:
+      type: object
+      properties:
+        status:
+          type: object
+          properties:
+            Flag:
+              type: string
+              enum: ["1"]
+          required: [Flag]
+      required: [status]
+    StatusError:
+      type: object
+      properties:
+        status:
+          type: object
+          properties:
+            Flag:
+              type: string
+              enum: ["0","N"]
+            Messages:
+              type: array
+              items:
+                type: object
+                properties:
+                  Description: { type: string }
+                  Id: { type: string }
+                  Type:
+                    type: integer
+                    enum: [0,1,2,3]
+                required: [Description, Id, Type]
+          required: [Flag, Messages]
+      required: [status]
+  examples:
+    Exito:
+      summary: Encolado exitoso
+      value:
+        status:
+          Flag: "1"
+    Error_Services:
+      summary: Error al conectar con Services
+      value:
+        status:
+          Flag: "N"
+          Messages:
+            - Description: "Error al solicitar el recurso: ACPSDELIVEREMAILRESOURCE"
+              Id: "Error"
+              Type: 1
+    Error_ColaInexistente:
+      summary: Cola inexistente
+      value:
+        status:
+          Flag: "0"
+          Messages:
+            - Description: 'La cola de emails "" no existe'
+              Id: "ColaInexistente"
+              Type: 1
+    Warning_DestinatarioVacio:
+      summary: Destinatario vacío/incorrecto
+      value:
+        status:
+          Flag: "0"
+          Messages:
+            - Description: "Al menos uno de los emails no posee un destinatario válido y no será enviado."
+              Id: "DestinatarioVacio"
+              Type: 0

@@ -1,0 +1,147 @@
+openapi: 3.1.0
+info:
+  title: Consulta de Documento por Id Proceso (DIC)
+  version: "1.0.2"
+  description: |
+    Servicio para **obtener el código de un documento** a partir de su **Id de Proceso GDE**.
+
+    Reglas (según PDF oficial):
+    - Tipo: REST
+    - Método: **POST**
+servers:
+  - url: https://{nodoXroad}/r1/mendoza.gov.ar/serviciosgdeprd
+    description: Ambiente Producción (según documento)
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GDE
+paths:
+  /api/v1/documentos/consultaporidproceso:
+    post:
+      tags: [GDE]
+      summary: Consulta código de documento por Id Proceso
+      operationId: consultarDocumentoPorIdProceso
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+        - $ref: '#/components/parameters/IdProceso'
+        - $ref: '#/components/parameters/SistemaOrigen'
+      responses:
+        "200":
+          description: Éxito o error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  CodigoDocumentoElectronico: { type: string, maxLength: 200 }
+                  SDTResultado:
+                    $ref: '#/components/schemas/SDTResultado'
+                required: [SDTResultado]
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_No_Suscripcion:
+                  $ref: '#/components/examples/Error_No_Suscripcion'
+                Error_Id_Vacio:
+                  $ref: '#/components/examples/Error_Id_Vacio'
+                Error_Origen_Vacio:
+                  $ref: '#/components/examples/Error_Origen_Vacio'
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+    IdProceso:
+      name: Idprocesodocumentoelectronico
+      in: query
+      required: true
+      description: Identificador del proceso del documento (máx. 200).
+      schema:
+        type: string
+        maxLength: 200
+      examples:
+        ejemplo:
+          value: procesoGEDO.71916889
+    SistemaOrigen:
+      name: Sistemaorigen
+      in: query
+      required: true
+      description: Sistema suscriptor asociado al documento.
+      schema:
+        type: string
+        maxLength: 200
+      examples:
+        ejemplo:
+          value: COP
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag, Messages]
+  examples:
+    Exito:
+      summary: Documento encontrado por Id de Proceso
+      value:
+        CodigoDocumentoElectronico: "IF-2019-00236017-GDEMZA-GDEMZA"
+        SDTResultado:
+          Flag: "C"
+          Messages:
+            - Description: "Se ha encontrado un documento electrónico con el Id de Proceso ingresado."
+              Id: "DocumentoElectronico_Encontrado"
+              Type: 0
+    Error_No_Suscripcion:
+      summary: No existe suscripción para workflowId + Sistema Origen
+      value:
+        CodigoDocumentoElectronico: ""
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Error: 3 - No existe la suscripcion perteneciente al workflowId: procesoGEDO.71916888 y al Sistema Origen: COP"
+              Id: "ErrorEnConsulta"
+              Type: 1
+    Error_Id_Vacio:
+      summary: Id de proceso vacío
+      value:
+        CodigoDocumentoElectronico: ""
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe completar el id del proceso del documento a consultar."
+              Id: "Filtros_Vacios_IdProceso"
+              Type: 1
+    Error_Origen_Vacio:
+      summary: Origen vacío
+      value:
+        CodigoDocumentoElectronico: ""
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Error: 3 - Parametro origen es obligatorio"
+              Id: "ErrorEnConsulta"
+              Type: 1

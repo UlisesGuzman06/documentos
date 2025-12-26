@@ -1,0 +1,181 @@
+openapi: 3.1.0
+info:
+  title: Consulta de Bloqueo de Expediente (DIC)
+  version: "1.0.1"
+  description: |
+    Servicio para **consultar si un expediente está bloqueado**.
+
+    Reglas de operación (según PDF oficial):
+    - Tipo servicio: REST
+    - Método: **GET**
+    - Observaciones: Servicio disponible en **EDI Mendoza**.
+    - Restricciones:
+      - Autorización del subsistema productor `capaserviciosgx`.
+      - Encabezados X-Road:
+        - `X-Road-Client` (**obligatorio**): Cliente autorizado.
+        - `X-Road-UserId`: Identificación del usuario que inicia la solicitud.
+        - `X-Road-Issue` (**obligatorio**): Identificador único y descentralizado (**UUID v4** recomendado).
+          - Se sugiere anteponer nombre de la app: `NombreApp-<uuid>`.
+          - En cadenas de llamados: `App2-App1-<uuid>`.
+    - Producción: **no indicado en el documento oficial**.
+
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Ambiente Testing (X-Road)
+    variables:
+      nodoXroad:
+        description: Nodo X-Road del entorno.
+        default: xroad-test.mendoza.gov.ar
+
+tags:
+  - name: GDE
+
+
+paths:
+  /GDEConsultaBloqueoTST:
+    get:
+      tags: [GDE]
+      summary: Consulta el estado de bloqueo de un expediente
+      description: Devuelve si el expediente está bloqueado y el `SDTResultado` de la operación.
+      operationId: consultarBloqueoExpediente
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+        - $ref: '#/components/parameters/Cod'
+      responses:
+        "200":
+          description: Respuesta de éxito o de error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ResponseConsultaBloqueo'
+                  - $ref: '#/components/schemas/SDTResultado'
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_Expediente_NoValido:
+                  $ref: '#/components/examples/Error_Expediente_NoValido'
+                Error_Filtros_Vacios_CodigoExpediente:
+                  $ref: '#/components/examples/Error_Filtros_Vacios_CodigoExpediente'
+
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Cliente autorizado para su consumo (X-Road).
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Identificación del usuario que inicia la solicitud.
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema:
+        type: string
+        description: |
+          Identificador único de la transacción. **UUID v4** recomendado.
+          Se permiten prefijos/cadenas:
+          - `NombreApp-<uuid>`
+          - `App2-App1-<uuid>`
+        examples:
+          ejemploCadena:
+            summary: Cadena de llamadas
+            value: App2-App1-a86a9843-05f8-4248-9f6a-312a1b5372e1
+    Cod:
+      name: Cod
+      in: query
+      required: true
+      description: |
+        Código del expediente electrónico a consultar.
+        Tamaño máximo 200. Si contiene `#`, usar percent-encoding: `#` → `%23`.
+      schema:
+        type: string
+        maxLength: 200
+      examples:
+        conPercentEncoding:
+          summary: Ejemplo con `#` codificado
+          value: EX-2022-00011642--GDEMZA-OSEP%23MSDSYD
+
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id:
+          type: string
+          maxLength: 128
+          description: Identificador único de mensaje (p.ej., `ConsultaExitosa`, `Expediente_NoValido`).
+        Type:
+          type: integer
+          description: Tipo de mensaje.
+          enum: [0, 1, 2, 3]
+          examples: [0]
+        Description:
+          type: string
+          maxLength: 256
+          description: Descripción del mensaje.
+      required: [Id, Type, Description]
+
+    SDTResultado:
+      type: object
+      properties:
+        Flag:
+          type: string
+          description: Estado del llamado del servicio (`C` con datos, `E` sin datos/condición de error).
+          enum: ["C", "E"]
+        Messages:
+          type: array
+          description: Colección de mensajes devueltos por el servicio.
+          items:
+            $ref: '#/components/schemas/Message'
+      required: [Flag, Messages]
+
+    ResponseConsultaBloqueo:
+      type: object
+      properties:
+        EstaBloqueado:
+          type: boolean
+          description: |
+            `true` si el expediente está **bloqueado**; `false` si está **desbloqueado**.
+        SDTResultado:
+          $ref: '#/components/schemas/SDTResultado'
+      required: [EstaBloqueado, SDTResultado]
+
+  examples:
+    Exito:
+      summary: Caso de éxito (expediente desbloqueado)
+      value:
+        EstaBloqueado: false
+        SDTResultado:
+          Flag: "C"
+          Messages:
+            - Description: "La consulta se ha realizado correctamente. El expediente se encuentra desbloqueado."
+              Id: "ConsultaExitosa"
+              Type: 0
+    Error_Expediente_NoValido:
+      summary: Error de aplicación - expediente no válido/no existe
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "El expediente ingresado no existe en sistema GDE."
+              Id: "Expediente_NoValido"
+              Type: 1
+    Error_Filtros_Vacios_CodigoExpediente:
+      summary: Error de aplicación - código de expediente vacío
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe completar el código del expediente a consultar."
+              Id: "Filtros_Vacios_CodigoExpediente"
+              Type: 1

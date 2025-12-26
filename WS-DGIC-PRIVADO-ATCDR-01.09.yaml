@@ -1,0 +1,285 @@
+openapi: 3.1.0
+info:
+  title: WS ALTA TURNO CDR (ATCDR)
+  version: "01.09"
+  description: |
+    Alta de turno en CDR por flujo de **4 pasos** (1→4). Documento: WS-DGIC-PRIVADO-ATCDR V.01.09.
+    • Paso 1: oficinas y preferencias
+    • Paso 2: sugerencia de turnos (día/hora)
+    • Paso 3: pre-confirmación (reserva temporal)
+    • Paso 4: confirmación
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/CDR
+    description: Testing (X-Road). Ruta base según documento.
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: CDR
+paths:
+  /tstWsAltaTurno:
+    post:
+      tags: [CDR]
+      summary: Alta de turno (Testing) — flujo por pasos 1 a 4
+      description: Determinado por el campo `paso` en el body (1|2|3|4).
+      operationId: altaTurnoCdrTst
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestAltaTurno'
+            examples:
+              paso1:
+                value:
+                  tipoDocumento: "CUIL"
+                  numeroDocumento: "20109876541"
+                  nombres: "Juan Manuel"
+                  apellidos: "Pérez"
+                  sexo: "M"
+                  fechaNacimiento: "1950-01-01"
+                  departamento: "Capital"
+                  localidad: ""
+                  mail: "correo@mail.com"
+                  telefono: "2615123123"
+                  tramite: "Actualización DNI 14 años cumplidos"
+                  paso: 1
+                  listaValor: []
+      responses:
+        "200":
+          description: Único HTTP documentado. Respuesta según paso o condición de fracaso.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RespuestaPaso1'
+                  - $ref: '#/components/schemas/RespuestaPaso2'
+                  - $ref: '#/components/schemas/RespuestaPaso3'
+                  - $ref: '#/components/schemas/RespuestaPaso4'
+                  - $ref: '#/components/schemas/CondicionFracaso'
+              examples:
+                ex_paso1:
+                  value:
+                    bDerecha: { descripcion: "Siguiente", nombre: "Siguiente", paso: 2 }
+                    bIzquierda: { descripcion: "Cancelar", nombre: "Cancelar", paso: 0 }
+                    campos:
+                      cantColumnas: 1
+                      cantFilas: 2
+                      columnas:
+                        - activo: true
+                          idCampo: "Oficinas"
+                          inicial: "-Oficina-"
+                          longitud: "60"
+                          tipoDato: "combobox"
+                          tooltipText: "Oficina"
+                          valores:
+                            - { desc: "MAIPU - CDR", id: "81387" }
+                            - { desc: "LAS HERAS - CDR", id: "81383" }
+                        - activo: true
+                          idCampo: "Preferencias"
+                          inicial: "-Preferencias-"
+                          longitud: "30"
+                          tipoDato: "combobox"
+                          tooltipText: "Elegí el turno de tu preferencia"
+                          valores:
+                            - { desc: "Mañana", id: "1" }
+                            - { desc: "Tarde", id: "2" }
+                            - { desc: "Noche", id: "3" }
+                      etiquetasFilas: ["Oficina","Preferencia del Turno"]
+                      flag: true
+                    dscGeneral: "Paso 1. Oficina y preferencia\nTrámite: Actualización DNI 14 años cumplidos"
+                    nuevaVentana: true
+                ex_error:
+                  value:
+                    campos:
+                      cantColumnas: 0
+                      cantFilas: 0
+                      errorMsg:
+                        - { codMsg: "12010314", textMsg: "Turno Existente 02/07/25 Centro MAIPU - CDR Doc: 33482557" }
+                      flag: false
+                    dscGeneral: ""
+                    nuevaVentana: false
+components:
+  schemas:
+    RequestAltaTurno:
+      type: object
+      additionalProperties: false
+      properties:
+        tipoDocumento: { type: string, maxLength: 20 }
+        numeroDocumento: { type: string, maxLength: 14 }
+        nombres: { type: string, maxLength: 60 }
+        apellidos: { type: string, maxLength: 60 }
+        sexo:
+          type: string
+          enum: ["F","M","X"]
+        fechaNacimiento: { type: string, format: date }
+        departamento: { type: string, maxLength: 60 }
+        localidad: { type: string, maxLength: 60 }
+        mail: { type: string, format: email, maxLength: 80 }
+        telefono: { type: string, maxLength: 20 }
+        tramite: { type: string, maxLength: 80 }
+        paso:
+          type: integer
+          enum: [1,2,3,4]
+        listaValor:
+          type: array
+          items:
+            type: object
+            additionalProperties: { type: string }
+      required: [tramite, paso, listaValor]
+    Boton:
+      type: object
+      properties:
+        descripcion: { type: string }
+        nombre: { type: string }
+        paso: { type: integer }
+      required: [descripcion, nombre, paso]
+    ValorCombo:
+      type: object
+      properties:
+        id: { type: string }
+        desc: { type: string }
+      required: [id, desc]
+    ColumnaPaso1:
+      type: object
+      properties:
+        activo: { type: boolean }
+        idCampo: { type: string }
+        inicial: { type: string }
+        longitud: { type: string }
+        tipoDato: { type: string, enum: ["combobox"] }
+        tooltipText: { type: string }
+        valores:
+          type: array
+          items: { $ref: '#/components/schemas/ValorCombo' }
+      required: [activo, idCampo, tipoDato]
+    CamposPaso1:
+      type: object
+      properties:
+        cantFilas: { type: integer }
+        cantColumnas: { type: integer }
+        columnas:
+          type: array
+          items: { $ref: '#/components/schemas/ColumnaPaso1' }
+        etiquetasFilas:
+          type: array
+          items: { type: string }
+        flag: { type: boolean }
+      required: [cantFilas, cantColumnas, columnas, flag]
+    RespuestaPaso1:
+      type: object
+      properties:
+        bDerecha: { $ref: '#/components/schemas/Boton' }
+        bIzquierda: { $ref: '#/components/schemas/Boton' }
+        campos: { $ref: '#/components/schemas/CamposPaso1' }
+        dscGeneral: { type: string }
+        nuevaVentana: { type: boolean }
+      required: [campos]
+    CalendarioTurno:
+      type: object
+      properties:
+        Hora: { type: string }
+        Id: { type: string }
+      required: [Hora, Id]
+    ValorCalendarioDia:
+      type: object
+      properties:
+        fecha: { type: string, format: date }
+        horario:
+          type: array
+          items: { $ref: '#/components/schemas/CalendarioTurno' }
+      required: [fecha, horario]
+    ColumnaPaso2:
+      type: object
+      properties:
+        activo: { type: boolean }
+        idCampo: { type: string, enum: ["turnos"] }
+        inicial: { type: string }
+        longitud: { type: string }
+        tipoDato: { type: string, enum: ["calendario"] }
+        tooltipText: { type: string }
+        valorCalendario:
+          type: array
+          items: { $ref: '#/components/schemas/ValorCalendarioDia' }
+      required: [activo, idCampo, tipoDato, valorCalendario]
+    CamposPaso2:
+      type: object
+      properties:
+        cantFilas: { type: integer }
+        cantColumnas: { type: integer }
+        columnas:
+          type: array
+          items: { $ref: '#/components/schemas/ColumnaPaso2' }
+        etiquetaColumnas:
+          type: array
+          items: { type: string }
+        flag: { type: boolean }
+      required: [cantFilas, cantColumnas, columnas, flag]
+    RespuestaPaso2:
+      type: object
+      properties:
+        bDerecha: { $ref: '#/components/schemas/Boton' }
+        bIzquierda: { $ref: '#/components/schemas/Boton' }
+        campos: { $ref: '#/components/schemas/CamposPaso2' }
+        dscGeneral: { type: string }
+        nuevaVentana: { type: boolean }
+      required: [campos]
+    IdTurnoOtorgado:
+      type: object
+      properties:
+        Fecha: { type: string, format: date }
+        Hora: { type: string }
+        Id: { type: string }
+      required: [Fecha, Hora, Id]
+    RespuestaPaso3:
+      type: object
+      properties:
+        bDerecha: { $ref: '#/components/schemas/Boton' }
+        bIzquierda: { $ref: '#/components/schemas/Boton' }
+        campos:
+          type: object
+          properties:
+            cantColumnas: { type: integer }
+            cantFilas: { type: integer }
+            flag: { type: boolean }
+          required: [flag]
+        dscGeneral: { type: string }
+        idturnootorgado: { $ref: '#/components/schemas/IdTurnoOtorgado' }
+        nuevaVentana: { type: boolean }
+      required: [campos, idturnootorgado]
+    RespuestaPaso4:
+      type: object
+      properties:
+        bIzquierda: { $ref: '#/components/schemas/Boton' }
+        campos:
+          type: object
+          properties:
+            cantColumnas: { type: integer }
+            cantFilas: { type: integer }
+            flag: { type: boolean }
+          required: [flag]
+        dscGeneral: { type: string }
+        nuevaVentana: { type: boolean }
+      required: [campos]
+    ErrorMsg:
+      type: object
+      properties:
+        codMsg: { type: string }
+        textMsg: { type: string }
+      required: [codMsg, textMsg]
+    CondicionFracaso:
+      type: object
+      properties:
+        campos:
+          type: object
+          properties:
+            cantColumnas: { type: integer }
+            cantFilas: { type: integer }
+            errorMsg:
+              type: array
+              items: { $ref: '#/components/schemas/ErrorMsg' }
+            flag: { type: boolean }
+          required: [flag]
+        dscGeneral: { type: string }
+        nuevaVentana: { type: boolean }
+      required: [campos]

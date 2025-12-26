@@ -1,0 +1,167 @@
+openapi: 3.1.0
+info:
+  title: Consulta de Documentos GDE (DIC)
+  version: "1.0.2"
+  description: |
+    Servicio para **consultar la información de un documento** por su código.
+    Devuelve `SDTDocumentoElectronico` y `SDTResultado`.
+
+    Reglas (según PDF oficial):
+    - Tipo: REST
+    - Método: **GET**
+    - Producción: `{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx/GDEConsultaDocumentosPrd`
+    - Restricciones: `X-Road-Client`, `X-Road-Issue` (UUID v4 recomendado).
+
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Nodo X‑Road (Testing por defecto).
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+
+tags:
+  - name: GDE
+
+paths:
+  /GDEConsultaDocumentosPrd:
+    get:
+      tags: [GDE]
+      summary: Consulta documento por código
+      operationId: consultarDocumentoGDE
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadIssue'
+        - $ref: '#/components/parameters/Cod'
+      responses:
+        "200":
+          description: Éxito o error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  SDTDocumentoElectronico:
+                    $ref: '#/components/schemas/SDTDocumentoElectronico'
+                  SDTResultado:
+                    $ref: '#/components/schemas/SDTResultado'
+                required: [SDTResultado]
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_Codigo_Vacio:
+                  $ref: '#/components/examples/Error_Codigo_Vacio'
+                Error_Excepcion_WSGDE:
+                  $ref: '#/components/examples/Error_Excepcion_WSGDE'
+
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+    Cod:
+      name: Cod
+      in: query
+      required: true
+      description: |
+        Código del documento (máx. 200).
+        Si contiene `#`, usar `%23`.
+      schema:
+        type: string
+        maxLength: 200
+      examples:
+        ejemplo:
+          value: CGP-2021-00060492-GDEMZA-CGPROV%23MHYF
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag, Messages]
+    SDTDocumentoElectronico:
+      type: object
+      properties:
+        CodigoDocumentoElectronico: { type: string, maxLength: 200 }
+        FechaCreacion: { type: string, format: date-time }
+        NumeroEspecial: { type: string }
+        Referencia: { type: string }
+        TipoDocumento: { type: string }
+        PDF: { type: string, description: "Base64" }
+        DatosPropios:
+          type: array
+          items:
+            type: object
+            properties:
+              nombre: { type: string }
+              obligatoriedad: { type: boolean }
+              orden: { type: string }
+              valor: { type: string }
+            required: [nombre, obligatoriedad, orden, valor]
+        Firmantes:
+          type: array
+          items:
+            type: object
+            properties:
+              Firmante: { type: string }
+            required: [Firmante]
+  examples:
+    Exito:
+      summary: Documento encontrado
+      value:
+        SDTDocumentoElectronico:
+          CodigoDocumentoElectronico: "CGP-2021-00060492-GDEMZA-CGPROV#MHYF"
+          DatosPropios:
+            - nombre: "Eje"
+              obligatoriedad: false
+              orden: "0"
+              valor: "2021"
+          FechaCreacion: "2021-10-07T17:12:57"
+          Firmantes:
+            - Firmante: "SIDICO Sistema CGP ( SIDICO - CGPROV#MHYF )"
+          NumeroEspecial: ""
+          PDF: "JV...GCg=="
+          Referencia: "MANDADO A PAGAR COMPRAS MAYORES: 2021 -  906 -  2709"
+          TipoDocumento: "CMMP Com.May_MandadoAPagar"
+        SDTResultado:
+          Flag: "C"
+          Messages:
+            - Description: "Se ha encontrado un documento electrónico con el código ingresado."
+              Id: "DocumentoElectronico_Encontrado"
+              Type: 0
+    Error_Codigo_Vacio:
+      summary: Código documento vacío
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe completar el código del documento a consultar."
+              Id: "Filtros_Vacios_CodigoDocumento"
+              Type: 1
+    Error_Excepcion_WSGDE:
+      summary: Excepción desde WSGDE
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Se ha producido una excepción al consultar los servicios con GDE del documento electrónico: CGP-2023-00060492-GDEMZA-CGPROV%23MHYF"
+              Id: "WSGDE_ExcepcionJava_MsjCapa"
+              Type: 1
+            - Description: "Error al consultar detalle para documento CGP-2023-00060492-GDEMZA-CGPROV%23MHYF la excepcion es El documento que desea consultar no existe."
+              Id: "WSGDE_ExcepcionJava_MsjWSGDE"
+              Type: 1

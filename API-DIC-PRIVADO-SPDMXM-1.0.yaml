@@ -1,0 +1,134 @@
+openapi: 3.1.0
+info:
+  title: DIC — Solicitud de Partidas Digitales MXM (Cambio de Estado)
+  version: "1.0.1"
+  description: |
+    Webhook para **cambio de estados** y entrega de respuesta de solicitud de partidas digitales.
+    Nombre del servicio (según documento): `solicitudDocumentoCambioEstado`.
+    Fuente: API-DIC-PRIVADO-SPDMXM-1.0 (Adaptación X-Road 1.0.1).
+servers:
+  - url: https://{nodoXroad}
+    description: "Producción (ruta relativa indicada en documento: mendoza/DIC/002/PORTALAPP/solicitudDocumentoCambioEstado)."
+    variables:
+      nodoXroad:
+        default: xroad.mendoza.gov.ar
+  - url: https://{nodoXroad}
+    description: "Testing (ruta relativa indicada en documento: mendoza/DIC/002/PORTALAPP/solicitudDocumentoCambioEstadoTst)."
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: PORTALAPP
+components:
+  parameters:
+    X_eRoad_Client:
+      name: X-eRoad-Client
+      in: header
+      required: true
+      schema: { type: string }
+      description: "Cliente autorizado para su consumo."
+    X_Road_UserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+      description: "Identificación del usuario que inicia la solicitud."
+    X_Road_Issue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: >
+        Identificador único (UUID v4 recomendado). Puede anteponerse el nombre de la app (`App-<uuid>`)
+        y, en cadenas de llamados, cada app (`App2-App1-<uuid>`).
+  schemas:
+    DocumentoAdjunto:
+      type: object
+      properties:
+        DocRepCod: { type: string, description: "Nombre clave del documento (ej.: ENTIDADES)" }
+        DocGUID: { type: string, description: "Id de consulta en el gestor documental" }
+    CambioEstadoRequest:
+      type: object
+      properties:
+        tipoDocumento:
+          type: string
+          description: "Tipo de solicitud"
+          examples: ["PARTIDA_NACIMIENTO","UNION_CONVIVENCIAL","PARTIDA_DEFUNCION","PARTIDA_MATRIMONIO","CAPACIDAD_LEGAL"]
+        codigoSolicitud: { type: string, description: "Identificador único de la solicitud" }
+        estadoSolicitud:
+          type: string
+          description: "Estado actual de la solicitud"
+          examples: ["Otorgado","No Otorgado"]
+        mensaje: { type: string, description: "Mensaje adicional relacionado con el cambio de estado" }
+        observaciones: { type: string, description: "Aclaración para el usuario sobre la solicitud" }
+        documentoAdjunto: { $ref: "#/components/schemas/DocumentoAdjunto" }
+      required: [tipoDocumento, codigoSolicitud, estadoSolicitud, mensaje, observaciones]
+    ExitoMessage:
+      type: object
+      properties:
+        message: { type: string }
+      required: [message]
+    ErrorValidation:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            statusCode: { type: integer, enum: [400] }
+            message: { type: string, const: "Errores de validación" }
+            details:
+              type: array
+              items: { type: string }
+          required: [statusCode, message, details]
+      required: [error]
+paths:
+  /solicitudDocumentoCambioEstado:
+    post:
+      tags: [PORTALAPP]
+      summary: Notificar cambio de estado de solicitud de partida digital
+      operationId: solicitudDocumentoCambioEstado
+      parameters:
+        - $ref: "#/components/parameters/X_eRoad_Client"
+        - $ref: "#/components/parameters/X_Road_UserId"
+        - $ref: "#/components/parameters/X_Road_Issue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CambioEstadoRequest" }
+            examples:
+              ejemplo:
+                value:
+                  tipoDocumento: PARTIDA_NACIMIENTO
+                  codigoSolicitud: "12345"
+                  estadoSolicitud: Otorgado
+                  mensaje: "Solicitud de partida de nacimiento no aprobada."
+                  observaciones: "Alguna observación"
+                  documentoAdjunto: { DocRepCod: "ENTIDADES", DocGUID: "123" }
+      responses:
+        "200":
+          description: Cambio de estado recibido/procesado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExitoMessage" }
+              examples:
+                exito:
+                  value: { message: "El cambio de estado o la notificación de error fueron recibidos y procesados correctamente." }
+        "400":
+          description: Errores de validación (parámetros faltantes/ inválidos / tipo inválido / estado inválido).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorValidation" }
+              examples:
+                tipo_documento_invalido:
+                  value:
+                    error: { statusCode: 400, message: "Errores de validación", details: ["El tipo de documento PARTIDA no es válido"] }
+                parametros_invalidos:
+                  value:
+                    error: { statusCode: 400, message: "Errores de validación", details: ["Parámetros inválidos"] }
+                parametros_faltantes:
+                  value:
+                    error: { statusCode: 400, message: "Errores de validación", details: ["Parámetros faltantes"] }
+                estado_invalido:
+                  value:
+                    error: { statusCode: 400, message: "Errores de validación", details: ["El estado de la solicitud vencido no es válido"] }

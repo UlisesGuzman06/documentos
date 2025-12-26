@@ -1,0 +1,160 @@
+openapi: 3.1.0
+info:
+  title: Consulta Usuario GDE (DIC)
+  version: "1.0.2"
+  description: |
+    Servicio para **obtener los datos de un usuario** de GDE enviando su código.
+
+    Reglas (según PDF oficial):
+    - Tipo: REST
+    - Método: **POST**
+    - Observaciones: Servicio disponible en EDI Mendoza.
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002
+    description: Ambiente Producción (según documento)
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GDE
+paths:
+  /GDEconsultausuariotst:
+    post:
+      tags: [GDE]
+      summary: Consulta un usuario por código
+      operationId: consultarUsuarioGDE
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+        - $ref: '#/components/parameters/Usuariocodigo'
+      responses:
+        "200":
+          description: Éxito o error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  SDTDatosUsuario:
+                    $ref: '#/components/schemas/SDTDatosUsuario'
+                  SDTResultado:
+                    $ref: '#/components/schemas/SDTResultado'
+                required: [SDTResultado]
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_Filtros_Vacios_CodigoUsuario:
+                  $ref: '#/components/examples/Error_Filtros_Vacios_CodigoUsuario'
+                Error_Excepcion_Servicio:
+                  $ref: '#/components/examples/Error_Excepcion_Servicio'
+                Error_No_Encontrado:
+                  $ref: '#/components/examples/Error_No_Encontrado'
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+    Usuariocodigo:
+      name: Usuariocodigo
+      in: query
+      required: true
+      description: Código del usuario (máx. 30).
+      schema:
+        type: string
+        maxLength: 30
+      examples:
+        ejemplo:
+          value: GUILLERMOGARCIA
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag, Messages]
+    SDTDatosUsuario:
+      type: object
+      properties:
+        Activo: { type: boolean }
+        ApellidoNombre: { type: string, maxLength: 9999 }
+        Cargo: { type: string, maxLength: 9999 }
+        Codigo: { type: string, maxLength: 30 }
+        CuitCuil: { type: string, maxLength: 11 }
+        Email: { type: string, maxLength: 100 }
+        JurisdiccionCodigo: { type: string, maxLength: 9999 }
+        ReparticionCodigo: { type: string, maxLength: 100 }
+        ReparticionNombre: { type: string, maxLength: 120 }
+        SectorCodigo: { type: string, maxLength: 100 }
+        SectorNombre: { type: string, maxLength: 120 }
+      required: [Codigo]
+  examples:
+    Exito:
+      summary: Usuario encontrado
+      value:
+        SDTDatosUsuario:
+          Activo: true
+          ApellidoNombre: "Guillermo Germán GARCIA"
+          Cargo: "Analista Funcional - DIC"
+          Codigo: "GUILLERMOGARCIA"
+          CuitCuil: "20276980506"
+          Email: "guillermogarcia@mendoza.gov.ar"
+          JurisdiccionCodigo: "MGTYJ"
+          ReparticionCodigo: "DGIC"
+          ReparticionNombre: "Dirección General de Informática y Comunicaciones"
+          SectorCodigo: "PVD"
+          SectorNombre: "Privada"
+        SDTResultado:
+          Flag: "C"
+          Messages:
+            - Description: "Se ha encontrado el usuario con el código ingresado."
+              Id: "Usuario_Encontrado"
+              Type: 0
+    Error_Filtros_Vacios_CodigoUsuario:
+      summary: Código de usuario vacío
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe completar el código del usuario a consultar."
+              Id: "Filtros_Vacios_CodigoUsuario"
+              Type: 1
+    Error_Excepcion_Servicio:
+      summary: Excepción al consultar servicio de usuario GDE
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Se ha producido una excepción al consultar el servicio de consulta de usuario de GDE."
+              Id: "ErrorEnConsulta"
+              Type: 1
+    Error_No_Encontrado:
+      summary: Usuario inexistente
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "No se han encontrado ningún usuario con el código ingresado."
+              Id: "No_Encontrado"
+              Type: 1

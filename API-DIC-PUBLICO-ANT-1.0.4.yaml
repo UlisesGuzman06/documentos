@@ -1,0 +1,110 @@
+openapi: 3.1.0
+info:
+  title: DIC — Anulación de Ticket (ANT)
+  version: "1.0.4"
+  description: |
+    Servicio para **anular** un ticket específico.
+    Documento: API-DIC-PUBLICO-ANT-1.0.4 (no indica URL/path HTTP exacto).
+servers:
+  - url: https://{nodoXroad}
+    description: Servidor no indicado en el documento oficial.
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags: [{ name: DIC }]
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "Identificador único (UUID v4 recomendado)."
+  schemas:
+    Anulacion:
+      type: object
+      properties:
+        ticketNro: { type: integer, example: 106032 }
+        solTipDoc: { type: string, example: "DNI" }
+        solDoc: { type: string, maxLength: 13, example: "39377856" }
+        solSex: { type: string, maxLength: 1, example: "F" }
+        motivoAnulacion: { type: string, maxLength: 16384 }
+        controloIDDispositivo: { type: boolean }
+        idDispositivo: { type: string, maxLength: 36 }
+        sistemaCodigo: { type: string, maxLength: 20, example: "PORTALWEB" }
+      required: [ticketNro, solTipDoc, solDoc, solSex, motivoAnulacion, sistemaCodigo]
+    Mensaje:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["S","N"] }
+        Messages:
+          type: array
+          items: { $ref: "#/components/schemas/Mensaje" }
+      required: [Flag, Messages]
+paths:
+  /NO_INDICADO_EN_DOCUMENTO:
+    post:
+      tags: [DIC]
+      summary: Anular ticket
+      description: "El path HTTP **no está indicado** en el documento oficial."
+      operationId: anularTicket
+      parameters:
+        - $ref: "#/components/parameters/XRoadClient"
+        - $ref: "#/components/parameters/XRoadIssue"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Anulacion: { $ref: "#/components/schemas/Anulacion" }
+              required: [Anulacion]
+            examples:
+              ejemplo:
+                value:
+                  Anulacion:
+                    ticketNro: 106032
+                    solTipDoc: "DNI"
+                    solDoc: "39377856"
+                    solSex: "F"
+                    controloIDDispositivo: false
+                    idDispositivo: ""
+                    motivoAnulacion: "Test anulacion"
+                    sistemaCodigo: "CONSULTAPUBLICA"
+      responses:
+        "200":
+          description: Único HTTP documentado (éxito o error de aplicación).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SDTResultado" }
+              examples:
+                exito:
+                  value:
+                    Flag: "S"
+                    Messages:
+                      - { Description: "La solicitud 106080 ha sido anulada. Muchas gracias.", Id: "Anulado", Type: 2 }
+                error_TicketYaAnulado:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "ERROR: El ticket 106079 ya se encuentra anulado.", Id: "TicketYaAnulado", Type: 1 }]
+                error_TicketNotFound:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "ERROR: No se encuentra ticket con el número ingresado.", Id: "TicketNotFound", Type: 1 }]
+                error_SistemaNoExistente:
+                  value:
+                    Flag: "N"
+                    Messages: [{ Description: "Error: El sistema ingresado 'TEST' no existe.", Id: "SistemaNoExistente", Type: 1 }]

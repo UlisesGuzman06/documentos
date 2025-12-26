@@ -1,0 +1,117 @@
+openapi: 3.1.0
+info:
+  title: Vinculación de Documentos DIC (VDC)
+  version: "1.0.1"
+  description: |
+    Vinculación de documentos a un expediente GDE.
+    Documento: API-DIC-PUBLICO-VDC-1.0.1
+
+    Reglas de operación (estricto):
+    - Tipo: REST
+    - Método: **GET**
+servers:
+  - url: https://{nodoXroad}
+    description: Testing (según URL de documento).
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GDE
+paths:
+  /r1/mendoza/serviciosgdeRESTtst/api/v1/Expedientes/vinculaciondocumentos:
+    get:
+      tags: [GDE]
+      summary: Vinculación de documentos a expediente
+      operationId: vinculacionDocumentos
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestVinculacionDocumentosExpediente'
+            examples:
+              ejemplo:
+                value:
+                  RequestVinculacionDocumentosExpediente:
+                    Operacion: "D"
+                    CodigoExpedienteElectronico: "EX-2022-00011642--GDEMZA-OSEP%23MSDSYD"
+                    Usuario: "GUILLERMOGARCIA"
+                    DocumentosAVincular:
+                      - "CGP-2021-00060492-GDEMZA-CGPROV%23MHYF"
+      responses:
+        "200":
+          description: Único HTTP documentado. `Flag=C` éxito, `Flag=E` error de aplicación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SDTResultado'
+              examples:
+                exito_desvincular:
+                  value:
+                    Flag: "C"
+                    Messages:
+                      - Description: "Se han desvinculado 1 documento/s electrónico/s al expediente EX-2022-00011642--GDEMZA-OSEP%23MSDSYD."
+                        Id: "DocumentosElectronicos_Desvinculados"
+                        Type: 0
+                error_Operacion_Vacio:
+                  value:
+                    Flag: "E"
+                    Messages:
+                      - Description: "Debe completar la operación que desea realizar: 'D' (Desvincular documentos) o 'V' (Vincular documentos)."
+                        Id: "Operacion_Vacio"
+                        Type: 1
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: "UUID v4 recomendado; permite prefijos/cadenas: App-<uuid>, App2-App1-<uuid>."
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag]
+    RequestVinculacionDocumentosExpediente:
+      type: object
+      properties:
+        RequestVinculacionDocumentosExpediente:
+          type: object
+          properties:
+            Operacion:
+              type: string
+              maxLength: 1
+              enum: ["D","V"]
+            CodigoExpedienteElectronico: { type: string, maxLength: 200 }
+            Usuario: { type: string, maxLength: 30 }
+            DocumentosAVincular:
+              type: array
+              items: { type: string, maxLength: 200 }
+          required: [Operacion, CodigoExpedienteElectronico, Usuario]
+      required: [RequestVinculacionDocumentosExpediente]

@@ -1,0 +1,199 @@
+openapi: 3.1.0
+info:
+  title: Consulta de Documentos con Archivos (DIC)
+  version: "1.0.2"
+  description: |
+    Servicio para **obtener la información de un documento** y su **Lista de Archivos de Trabajo**,
+    enviando el código del documento.
+
+    Reglas (según PDF oficial):
+    - Tipo: REST
+    - Método: **POST**
+    - Observaciones: Servicio disponible en EDI Mendoza.
+    - Restricciones:
+      - Subsistema productor: `capaserviciosgx`.
+      - Headers:
+        - `X-Road-Client` (obligatorio)
+        - `X-Road-UserId`
+        - `X-Road-Issue` (obligatorio; **UUID v4** recomendado; admite cadenas `App2-App1-<uuid>`).
+servers:
+  - url: https://{nodoXroad}/r1/mendoza.gov.ar/serviciosgdeprd
+    description: Ambiente Producción (según documento)
+    variables:
+      nodoXroad:
+        description: Nodo X-Road del entorno.
+        default: xroad-test.mendoza.gov.ar
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Ambiente Testing (no indicado explícitamente; ruta base estándar X-Road)
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GDE
+paths:
+  /api/v1/documentos/consultaconarchivos:
+    post:
+      tags: [GDE]
+      summary: Consulta documento con lista de archivos de trabajo
+      operationId: consultarDocumentoConArchivos
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+        - $ref: '#/components/parameters/Cod'
+      responses:
+        "200":
+          description: Éxito o error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  SDTDocumentoElectronico:
+                    $ref: '#/components/schemas/SDTDocumentoElectronico'
+                  SDTResultado:
+                    $ref: '#/components/schemas/SDTResultado'
+                required: [SDTResultado]
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_Filtros_Vacios_CodigoDocumento:
+                  $ref: '#/components/examples/Error_Filtros_Vacios_CodigoDocumento'
+                Error_WSGDE_ExcepcionJava:
+                  $ref: '#/components/examples/Error_WSGDE_ExcepcionJava'
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: |
+        Identificador único de la transacción. **UUID v4** recomendado.
+        Se permiten cadenas con prefijos de aplicaciones: `App2-App1-<uuid>`.
+    Cod:
+      name: Cod
+      in: query
+      required: true
+      description: |
+        Código del documento electrónico a consultar (máx. 200).
+        Si contiene `#`, usar percent-encoding: `#` → `%23`.
+      schema:
+        type: string
+        maxLength: 200
+      examples:
+        ejemplo:
+          value: CGP-2021-00060492-GDEMZA-CGPROV%23MHYF
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag, Messages]
+    SDTDocumentoElectronico:
+      type: object
+      properties:
+        CodigoDocumentoElectronico: { type: string, maxLength: 200 }
+        FechaCreacion: { type: string, format: date-time }
+        NumeroEspecial: { type: string, maxLength: 9999 }
+        Referencia: { type: string, maxLength: 9999 }
+        TipoDocumento: { type: string, maxLength: 9999 }
+        PDF: { type: string, description: "Base64", maxLength: 9999 }
+        DatosPropios:
+          type: array
+          items:
+            type: object
+            properties:
+              nombre: { type: string }
+              obligatoriedad: { type: boolean }
+              orden: { type: string }
+              tipo: { type: string }
+              valor: { type: string }
+            required: [nombre, obligatoriedad, orden, valor]
+        Firmantes:
+          type: array
+          items:
+            type: object
+            properties:
+              Firmante: { type: string }
+            required: [Firmante]
+        ListaArchivosDeTrabajo:
+          type: array
+          items:
+            type: object
+            properties:
+              idTarea: { type: string }
+              fechaAsociacion: { type: string, format: date-time }
+              nombreArchivo: { type: string }
+              usuarioAsociador: { type: string }
+            required: [idTarea, fechaAsociacion, nombreArchivo, usuarioAsociador]
+  examples:
+    Exito:
+      summary: Documento y archivos recuperados
+      value:
+        SDTDocumentoElectronico:
+          CodigoDocumentoElectronico: "CGP-2021-00060492-GDEMZA-CGPROV#MHYF"
+          DatosPropios:
+            - nombre: "Eje"
+              obligatoriedad: false
+              orden: "0"
+              valor: "2021"
+          FechaCreacion: "2021-10-07T17:12:57"
+          Firmantes:
+            - Firmante: "SIDICO Sistema CGP ( SIDICO - CGPROV#MHYF )"
+          NumeroEspecial: ""
+          PDF: "JV...GCg=="
+          Referencia: "MANDADO A PAGAR COMPRAS MAYORES: 2021 -  906 -  2709"
+          TipoDocumento: "CMMP Com.May_MandadoAPagar"
+          ListaArchivosDeTrabajo:
+            - idTarea: "procesoGEDO.71916889"
+              fechaAsociacion: "2022-04-08T12:23:00"
+              nombreArchivo: "DI-2013-00058087--MGEYA.pdf"
+              usuarioAsociador: "GUILLERMOGARCIA"
+        SDTResultado:
+          Flag: "C"
+          Messages:
+            - Description: "Se ha encontrado un documento electrónico con el código ingresado."
+              Id: "DocumentoElectronico_Encontrado"
+              Type: 0
+    Error_Filtros_Vacios_CodigoDocumento:
+      summary: Código documento vacío
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe completar el código del documento a consultar."
+              Id: "Filtros_Vacios_CodigoDocumento"
+              Type: 1
+    Error_WSGDE_ExcepcionJava:
+      summary: Excepción desde WSGDE
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Se ha producido una excepción al consultar los servicios con GDE del documento electrónico: CGP-2023-00060492-GDEMZA-CGPROV%23MHYF"
+              Id: "WSGDE_ExcepcionJava_MsjCapa"
+              Type: 1
+            - Description: "Error al consultar detalle para documento CGP-2023-00060492-GDEMZA-CGPROV%23MHYF la excepcion es El documento que desea consultar no existe."
+              Id: "WSGDE_ExcepcionJava_MsjWSGDE"
+              Type: 1

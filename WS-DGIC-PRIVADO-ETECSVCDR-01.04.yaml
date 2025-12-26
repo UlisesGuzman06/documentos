@@ -1,0 +1,38 @@
+openapi: 3.1.0
+info:
+  title: WS Entrega/Estado CSV (CDR)
+  version: "01.04"
+  description: |
+    Servicio para **exportar o listar en CSV** el estado/entregas de turnos CDR.
+    Fuente: WS-DGIC-PRIVADO-ETECSVCDR-01.04.
+servers:
+  - url: http://dicapprdb.mendoza.gov.ar:8080/servicioscdrtst/WebServCDR
+    description: Testing (según convención CDR).
+tags:
+  - name: CDR
+paths:
+  /WSEntregaCSV:
+    get:
+      tags: [CDR]
+      summary: Exporta estado/entregas de turnos en CSV
+      operationId: exportEntregaCSV
+      parameters:
+        - name: fecha
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: codCentro
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Único HTTP documentado. Respuesta en **text/csv**.
+          content:
+            text/csv:
+              schema:
+                type: string
+                description: CSV plano con encabezados.
+              examples:
+                Ejemplo:
+                  value: "fecha,codCentro,codTurno,estado\n2025-07-02,1,08138702072025010000101,ENTREGADO\n"

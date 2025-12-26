@@ -1,0 +1,226 @@
+openapi: 3.1.0
+info:
+  title: Creación de Documento GDE (DIC)
+  version: "1.0.2"
+  description: |
+    Servicio para **crear** un documento en GDE enviando los datos requeridos.
+    Devuelve `CodigoDocumentoElectronico` y `SDTResultado`.
+
+    Reglas (según PDF oficial):
+    - Tipo: REST
+    - Método: **POST**
+    - Ambiente Producción: `{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx/GDECreacionDocumentosPrd`
+    - Restricciones:
+      - Subsistema productor: `capaserviciosgx`.
+      - Headers: `X-Road-Client` (obligatorio), `X-Road-UserId`, `X-Road-Issue` (obligatorio, **UUID v4 recomendado**).
+
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Nodo X‑Road (Testing por defecto).
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+
+tags:
+  - name: GDE
+
+paths:
+  /GDECreacionDocumentosPrd:
+    post:
+      tags: [GDE]
+      summary: Crea un documento GDE
+      operationId: crearDocumentoGDE
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestCreacionDocumento'
+            examples:
+              Ejemplo:
+                value:
+                  RequestCreacionDocumento:
+                    DocumentoTipo: "ANEXO"
+                    DocumentoData: "dGVzdA0K"
+                    DocumentoReferencia: "Caratulacion"
+                    DocumentoTipoArchivo: "txt"
+                    UsuarioGDE: "GUILLERMOGARCIA"
+                    IdTransaccion: 0
+                    DocumentoGeneradoPorUsuarioExterno: false
+                    DatosUsuarioExterno:
+                      UsuarioExternoNombreApellido: ""
+                      UsuarioExternoCargo: ""
+                      UsuarioExternoReparticionCodigo: ""
+      responses:
+        "200":
+          description: Éxito o error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  CodigoDocumentoElectronico: { type: string, maxLength: 200 }
+                  SDTResultado: { $ref: '#/components/schemas/SDTResultado' }
+                required: [SDTResultado]
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                UsuarioGDE_Vacio:
+                  $ref: '#/components/examples/UsuarioGDE_Vacio'
+                UsuarioExterno_NombreCargo_Codigo_Vacio:
+                  $ref: '#/components/examples/UsuarioExterno_NombreCargo_Codigo_Vacio'
+
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+      description: Cliente autorizado (X‑Road).
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+      description: Usuario que inicia la solicitud.
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+      description: |
+        Identificador único de la transacción. **UUID v4** recomendado.
+        Se permiten cadenas con prefijos de aplicaciones.
+  schemas:
+    KeyValue:
+      type: object
+      properties:
+        Key: { type: string }
+        Value: { type: string }
+      required: [Key, Value]
+    ArchivoEmbebido:
+      type: object
+      properties:
+        ArchivoEmbebidoData: { type: string, description: "Base64" }
+        ArchivoEmbebidoNombre: { type: string }
+      required: [ArchivoEmbebidoData, ArchivoEmbebidoNombre]
+    DatosUsuarioExterno:
+      type: object
+      properties:
+        UsuarioExternoNombreApellido: { type: string }
+        UsuarioExternoCargo: { type: string }
+        UsuarioExternoReparticionCodigo: { type: string }
+      required: [UsuarioExternoNombreApellido, UsuarioExternoCargo, UsuarioExternoReparticionCodigo]
+    ComunicacionOficial:
+      type: object
+      properties:
+        Destinatarios:
+          type: array
+          items:
+            type: object
+            properties:
+              UsuarioDestinatario: { type: string }
+            required: [UsuarioDestinatario]
+        Copia:
+          type: array
+          items:
+            type: object
+            properties:
+              UsuarioDestinatarioCopia: { type: string }
+            required: [UsuarioDestinatarioCopia]
+        CopiaOculta:
+          type: array
+          items:
+            type: object
+            properties:
+              UsuarioDestinatarioCopiaOculta: { type: string }
+            required: [UsuarioDestinatarioCopiaOculta]
+        Mensaje: { type: string }
+        DestinatariosExternos:
+          type: array
+          items:
+            type: object
+            properties:
+              DestinatarioExternoNombre: { type: string }
+              DestinatarioExternoReparticion: { type: string }
+            required: [DestinatarioExternoNombre, DestinatarioExternoReparticion]
+    RequestCreacionDocumento:
+      type: object
+      properties:
+        RequestCreacionDocumento:
+          type: object
+          properties:
+            DocumentoTipo: { type: string, maxLength: 60 }
+            DocumentoData: { type: string, description: "Base64", maxLength: 4000000 }
+            DocumentoReferencia: { type: string }
+            DocumentoTipoArchivo: { type: string }
+            UsuarioGDE: { type: string, maxLength: 30 }
+            IdTransaccion: { type: number }
+            DocumentoGeneradoPorUsuarioExterno: { type: boolean }
+            DatosUsuarioExterno: { $ref: '#/components/schemas/DatosUsuarioExterno' }
+            Metadatos:
+              type: array
+              items: { $ref: '#/components/schemas/KeyValue' }
+            ArchivosEmbebidos:
+              type: array
+              items: { $ref: '#/components/schemas/ArchivoEmbebido' }
+            ComunicacionOficialMensaje: { $ref: '#/components/schemas/ComunicacionOficial' }
+          required: [DocumentoTipo, DocumentoData, DocumentoReferencia, DocumentoTipoArchivo, UsuarioGDE]
+      required: [RequestCreacionDocumento]
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag, Messages]
+  examples:
+    Exito:
+      summary: Documento creado
+      value:
+        CodigoDocumentoElectronico: "IF-2023-00000453-GDEMZA-DGIC"
+        SDTResultado:
+          Flag: "C"
+          Messages:
+            - Description: "El documento  electrónico se ha creado correctamente."
+              Id: "DocumentoElectronico_Creado"
+              Type: 0
+    UsuarioGDE_Vacio:
+      summary: Falta UsuarioGDE
+      value:
+        CodigoDocumentoElectronico: ""
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe completar el código del usuario de GDE que creará el documento."
+              Id: "UsuarioGDE_Vacio"
+              Type: 1
+    UsuarioExterno_NombreCargo_Codigo_Vacio:
+      summary: Falta datos de usuario externo
+      value:
+        CodigoDocumentoElectronico: ""
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe completar el nombre y apellido del usuario externo."
+              Id: "UsuarioExternoNombreApellido_Vacio"
+              Type: 1
+            - Description: "Debe completar el cargo del usuario externo."
+              Id: "UsuarioExternoCargo_Vacio"
+              Type: 1
+            - Description: "Debe completar el código de la usuario externo."
+              Id: "UsuarioExternoReparticionCodigo_Vacio"
+              Type: 1

@@ -1,0 +1,156 @@
+openapi: 3.1.0
+info:
+  title: Consulta Pases de Expediente GDE (DIC)
+  version: "1.0.1"
+  description: |
+    Servicio para **obtener la colección de pases** de un expediente GDE.
+
+    Reglas (según PDF oficial):
+    - Tipo: REST
+    - Método: **GET**
+    - Testing: `https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx/GDEConsultaPasesExpedienteTST`
+    - Producción: Aún no disponible (según documento).
+servers:
+  - url: https://{nodoXroad}/r1/mendoza/DIC/002/capaserviciosgx
+    description: Ambiente Testing (X-Road)
+    variables:
+      nodoXroad:
+        default: xroad-test.mendoza.gov.ar
+tags:
+  - name: GDE
+  - name: Expedientes
+paths:
+  /GDEConsultaPasesExpedienteTST:
+    get:
+      tags: [GDE, Expedientes]
+      summary: Consulta los pases de un expediente
+      operationId: consultarPasesExpediente
+      parameters:
+        - $ref: '#/components/parameters/XRoadClient'
+        - $ref: '#/components/parameters/XRoadUserId'
+        - $ref: '#/components/parameters/XRoadIssue'
+        - $ref: '#/components/parameters/Cod'
+      responses:
+        "200":
+          description: Éxito o error de aplicación (único HTTP documentado).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  SDTExpedientePases:
+                    type: array
+                    items: { $ref: '#/components/schemas/SDTPase' }
+                  SDTResultado:
+                    $ref: '#/components/schemas/SDTResultado'
+                required: [SDTResultado]
+              examples:
+                Exito:
+                  $ref: '#/components/examples/Exito'
+                Error_No_Encontrados:
+                  $ref: '#/components/examples/Error_No_Encontrados'
+                Error_Expediente_NoValido:
+                  $ref: '#/components/examples/Error_Expediente_NoValido'
+                Error_Filtros_Vacios_CodigoExpediente:
+                  $ref: '#/components/examples/Error_Filtros_Vacios_CodigoExpediente'
+components:
+  parameters:
+    XRoadClient:
+      name: X-Road-Client
+      in: header
+      required: true
+      schema: { type: string }
+    XRoadUserId:
+      name: X-Road-UserId
+      in: header
+      required: false
+      schema: { type: string }
+    XRoadIssue:
+      name: X-Road-Issue
+      in: header
+      required: true
+      schema: { type: string }
+    Cod:
+      name: Cod
+      in: query
+      required: true
+      description: |
+        Código del expediente electrónico (máx. 200).
+        Si contiene `#`, usar `%23`.
+      schema:
+        type: string
+        maxLength: 200
+      examples:
+        ejemplo:
+          value: EX-2022-00011642--GDEMZA-OSEP%23MSDSYD
+  schemas:
+    Message:
+      type: object
+      properties:
+        Id: { type: string, maxLength: 128 }
+        Type: { type: integer, enum: [0,1,2,3] }
+        Description: { type: string, maxLength: 256 }
+      required: [Id, Type, Description]
+    SDTResultado:
+      type: object
+      properties:
+        Flag: { type: string, enum: ["C","E"] }
+        Messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+      required: [Flag, Messages]
+    SDTPase:
+      type: object
+      properties:
+        DestinatarioTipo: { type: string, maxLength: 30, description: "MESA | REPARTICION | SECTOR | USUARIO" }
+        DestinatarioCodigo: { type: string, maxLength: 9999 }
+        DestinatarioNombre: { type: string, maxLength: 9999 }
+        Estado: { type: string, maxLength: 9999 }
+        Fecha: { type: string, format: date-time }
+        Motivo: { type: string, maxLength: 9999 }
+        TipoOperacion: { type: string, maxLength: 9999 }
+        Usuario: { type: string, maxLength: 9999 }
+      required: [DestinatarioTipo, DestinatarioNombre, Fecha, TipoOperacion, Usuario]
+  examples:
+    Exito:
+      summary: Pases recuperados
+      value:
+        SDTExpedientePases:
+          - DestinatarioTipo: "USUARIO"
+            DestinatarioCodigo: "SIDICO"
+            DestinatarioNombre: "SIDICO Sistema CGP"
+            Estado: "Tramitación"
+            Fecha: "2021-10-07T17:14:06"
+            Motivo: "Imputación de Sueldos. Enviado para su pago."
+            TipoOperacion: "Pase"
+            Usuario: "GUILLERMOGARCIA"
+        SDTResultado:
+          Flag: "C"
+          Messages: []
+    Error_No_Encontrados:
+      summary: Sin pases asociados
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "No se encontraron pases asociados al expediente electrónico con el código ingresado: EXxXXXXXXXXXX"
+              Id: "No_Encontrados"
+              Type: 1
+    Error_Expediente_NoValido:
+      summary: Expediente inexistente
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "El expediente ingresado no existe en sistema GDE."
+              Id: "Expediente_NoValido"
+              Type: 1
+    Error_Filtros_Vacios_CodigoExpediente:
+      summary: Código de expediente vacío
+      value:
+        SDTResultado:
+          Flag: "E"
+          Messages:
+            - Description: "Debe completar el código del expediente a consultar sus pases."
+              Id: "Filtros_Vacios_CodigoExpediente"
+              Type: 1
